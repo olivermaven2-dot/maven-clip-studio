@@ -17,7 +17,7 @@
 <div id="youtubePane" class="hidden"><label for="youtubeUrl">YouTube video URL</label><div class="row"><input id="youtubeUrl" type="url" placeholder="https://www.youtube.com/watch?v=…"><button id="loadYoutube" class="primary" type="button">Preview</button></div><div class="notice">YouTube links can be previewed here, but a webpage cannot directly extract or download video frames from the YouTube player. To export a clip, upload a source file you own or are authorized to edit.</div><div id="youtubePreview" class="hidden" style="margin-top:12px"></div></div>
 <div class="divider"></div><div class="preview" id="preview"><div class="placeholder"><b>▶</b><strong>Your video preview</strong><div class="muted">Choose a local video to begin editing</div></div></div><div class="preview-label"><span id="sourceName">No source loaded</span><span id="durationLabel">00:00 / 00:00</span></div>
 <div class="row"><button id="playBtn" type="button" disabled>▶ Play</button><button id="markStart" type="button" disabled>Set start to current time</button><button id="markEnd" type="button" disabled>Set end to current time</button></div></div>
-<div class="panel"><h3>02 / Shape your clip</h3><p class="muted">Choose the exact moment. Export runs locally in your browser; longer clips may take a while.</p><div class="rangegrid"><div class="field"><label for="startTime">Start time (seconds)</label><input id="startTime" type="number" min="0" step=".1" value="0"></div><div class="field"><label for="endTime">End time (seconds)</label><input id="endTime" type="number" min="0" step=".1" value="15"></div></div><div class="row"><div class="field"><label for="aspect">Clip format</label><select id="aspect"><option value="vertical">Vertical 9:16 (Shorts)</option><option value="original">Original aspect ratio</option></select></div><div class="field"><label for="clipTitle">Clip name</label><input id="clipTitle" maxlength="90" placeholder="My best moment"></div></div><div class="buttonrow"><button id="previewClip" type="button" disabled>Preview selection</button><button id="exportClip" class="primary" type="button" disabled>Export clip</button></div><div id="exportStatus" class="notice hidden" role="status"></div><p class="small">Export support depends on your browser. This first version creates a WebM file where MediaRecorder is supported.</p></div>
+<div class="panel"><h3>02 / Shape your clip</h3><p class="muted">Choose the exact moment. Export runs locally in your browser; longer clips may take a while.</p><div class="rangegrid"><div class="field"><label for="startTime">Start time (seconds)</label><input id="startTime" type="number" min="0" step=".1" value="0"></div><div class="field"><label for="endTime">End time (seconds)</label><input id="endTime" type="number" min="0" step=".1" value="15"></div></div><div class="row"><div class="field"><label for="aspect">Clip format</label><select id="aspect"><option value="vertical">Vertical 9:16 (Shorts)</option><option value="original">Original aspect ratio</option></select></div><div class="field"><label for="clipTitle">Clip name</label><input id="clipTitle" maxlength="90" placeholder="My best moment"></div></div><div class="buttonrow"><button id="previewClip" type="button" disabled>Preview selection</button><button id="exportClip" class="primary" type="button" disabled>Export clip</button></div><div id="exportStatus" class="notice hidden" role="status"></div><div class="buttonrow" style="margin-top:10px"><button id="reviewExport" type="button" disabled>Review exported clip</button></div><p class="small">Export support depends on your browser. This first version creates a WebM file where MediaRecorder is supported.</p></div>
 </section>
 <aside class="stack">
 <div class="panel"><h3>03 / Prepare the post</h3><div class="field"><label for="postTitle">YouTube title</label><input id="postTitle" maxlength="100" placeholder="Write a clear, engaging title"></div><div class="field"><label for="postDescription">Description</label><textarea id="postDescription" rows="4" placeholder="Add context, attribution or original commentary…"></textarea></div><div class="field"><label for="hashtags">Hashtags</label><input id="hashtags" placeholder="#shorts #highlights"></div><div class="field"><label for="category">Content type</label><select id="category"><option>General</option><option>Podcast / Interview</option><option>Football / Sports commentary</option><option>Motivation</option><option>Gaming</option><option>Education</option><option>Comedy</option><option>Music</option><option>News / Commentary</option></select></div><div class="buttonrow"><button id="useClipTitle" type="button">Use clip name as title</button><button id="saveDraft" class="primary" type="button">Save post draft</button></div><div id="draftStatus" class="notice hidden" role="status"></div></div>
@@ -78,16 +78,99 @@ $('markEnd').onclick=()=>{$('endTime').value=video.currentTime.toFixed(1)};
 $('previewClip').onclick=()=>{const a=Number($('startTime').value),b=Number($('endTime').value);if(!validRange(a,b))return;video.currentTime=a;video.play();const stop=()=>{if(video.currentTime>=b){video.pause();video.removeEventListener('timeupdate',stop)}};video.addEventListener('timeupdate',stop)};
 function validRange(a,b){if(!currentFile||!Number.isFinite(a)||!Number.isFinite(b)||a<0||b<=a||b>video.duration){setNotice('exportStatus','Choose a valid time range within the loaded video.','error');return false}return true}
 function supportedMime(){return ['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'].find(t=>window.MediaRecorder&&MediaRecorder.isTypeSupported(t))||''}
-$('exportClip').onclick=async()=>{const start=Number($('startTime').value),end=Number($('endTime').value);if(!validRange(start,end))return;const mime=supportedMime();if(!mime){setNotice('exportStatus','This browser does not support WebM recording. Try an up-to-date Chrome browser.','error');return}
-const btn=$('exportClip');btn.disabled=true;setNotice('exportStatus','Preparing clip… keep this tab open until export finishes.');let recorder,stream,canvas,raf;try{
-const vertical=$('aspect').value==='vertical',w=vertical?720:Math.min(1280,video.videoWidth||1280),h=vertical?1280:Math.round(w*(video.videoHeight/(video.videoWidth||16)));canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;const ctx=canvas.getContext('2d');stream=canvas.captureStream(30);
-let audioStream=null;try{if(video.captureStream)audioStream=video.captureStream();else if(video.mozCaptureStream)audioStream=video.mozCaptureStream();if(audioStream)audioStream.getAudioTracks().forEach(t=>stream.addTrack(t))}catch(e){}
-const chunks=[];recorder=new MediaRecorder(stream,{mimeType:mime});recorder.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data)};recorder.onerror=()=>setNotice('exportStatus','Recording failed. Try a shorter clip or another browser.','error');
-const draw=()=>{if(video.readyState>=2){ctx.fillStyle='#000';ctx.fillRect(0,0,w,h);if(vertical){const scale=Math.max(w/video.videoWidth,h/video.videoHeight),dw=video.videoWidth*scale,dh=video.videoHeight*scale;ctx.drawImage(video,(w-dw)/2,(h-dh)/2,dw,dh)}else{const scale=Math.min(w/video.videoWidth,h/video.videoHeight),dw=video.videoWidth*scale,dh=video.videoHeight*scale;ctx.drawImage(video,(w-dw)/2,(h-dh)/2,dw,dh)}}raf=requestAnimationFrame(draw)};
-video.pause();video.currentTime=start;await new Promise((resolve,reject)=>{const timeout=setTimeout(()=>reject(new Error('Video seek timed out')),10000);video.addEventListener('seeked',function once(){clearTimeout(timeout);video.removeEventListener('seeked',once);resolve()})});
-draw();recorder.start(250);await video.play();setNotice('exportStatus','Exporting '+(end-start).toFixed(1)+' seconds…');await new Promise(resolve=>{const stop=()=>{if(video.currentTime>=end){video.pause();if(recorder.state!=='inactive')recorder.stop();video.removeEventListener('timeupdate',stop)}};video.addEventListener('timeupdate',stop);recorder.onstop=resolve;setTimeout(()=>{if(recorder.state!=='inactive')recorder.stop()},Math.ceil((end-start)*1000)+4000)});
-cancelAnimationFrame(raf);stream.getTracks().forEach(t=>t.stop());exportedBlob=new Blob(chunks,{type:mime});if(exportedUrl)URL.revokeObjectURL(exportedUrl);exportedUrl=URL.createObjectURL(exportedBlob);clipName=($('clipTitle').value.trim()||'maven-clip').replace(/[^a-z0-9-_ ]/gi,'').replace(/\s+/g,'-');const a=document.createElement('a');a.href=exportedUrl;a.download=clipName+'.webm';document.body.appendChild(a);a.click();a.remove();setNotice('exportStatus','Clip exported and downloaded. Review the file before saving your post draft.','success');
-}catch(err){if(raf)cancelAnimationFrame(raf);if(stream)stream.getTracks().forEach(t=>t.stop());setNotice('exportStatus','Could not export this clip: '+(err.message||'browser recording error')+'. Try a shorter clip or Chrome.','error')}finally{btn.disabled=false;video.pause()}};
+$('exportClip').onclick=async()=>{
+ const start=Number($('startTime').value),end=Number($('endTime').value);
+ if(!validRange(start,end))return;
+ const mime=supportedMime();
+ if(!mime){setNotice('exportStatus','This browser does not support WebM recording. Try an up-to-date Chrome browser.','error');return}
+ const btn=$('exportClip'),reviewBtn=$('reviewExport');
+ btn.disabled=true;reviewBtn.disabled=true;
+ let recorder=null,stream=null,raf=0,stopTimer=0,progressHandler=null,stopHandler=null,oldTime=video.currentTime,wasPlaying=!video.paused;
+ const stopTracks=()=>{if(stream)stream.getTracks().forEach(t=>{try{t.stop()}catch(e){}})};
+ try{
+  setNotice('exportStatus','Preparing export… 0%. Keep this tab open until the download starts.');
+  const sourceWidth=video.videoWidth||1280,sourceHeight=video.videoHeight||720;
+  const vertical=$('aspect').value==='vertical',w=vertical?720:Math.min(1280,sourceWidth),h=vertical?1280:Math.max(1,Math.round(w*sourceHeight/sourceWidth));
+  const canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;
+  const ctx=canvas.getContext('2d');if(!ctx)throw new Error('Canvas is unavailable in this browser');
+  stream=canvas.captureStream(30);
+  let audioStream=null;
+  try{
+   if(video.captureStream)audioStream=video.captureStream();
+   else if(video.mozCaptureStream)audioStream=video.mozCaptureStream();
+   if(audioStream)audioStream.getAudioTracks().forEach(t=>stream.addTrack(t));
+  }catch(e){/* Silent video export is still possible on browsers without audio capture. */}
+  const chunks=[];
+  recorder=new MediaRecorder(stream,{mimeType:mime});
+  recorder.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data)};
+  recorder.onerror=()=>{setNotice('exportStatus','The browser reported a recording error. Try a shorter clip or another browser.','error')};
+  let drawing=true;
+  const draw=()=>{
+   if(!drawing)return;
+   if(video.readyState>=2&&video.videoWidth&&video.videoHeight){
+    ctx.fillStyle='#000';ctx.fillRect(0,0,w,h);
+    const scale=vertical?Math.max(w/sourceWidth,h/sourceHeight):Math.min(w/sourceWidth,h/sourceHeight);
+    const dw=sourceWidth*scale,dh=sourceHeight*scale;
+    ctx.drawImage(video,(w-dw)/2,(h-dh)/2,dw,dh);
+   }
+   raf=requestAnimationFrame(draw);
+  };
+  video.pause();
+  await new Promise((resolve,reject)=>{
+   let done=false;
+   const finish=err=>{if(done)return;done=true;clearTimeout(timeout);video.removeEventListener('seeked',onSeeked);err?reject(err):resolve()};
+   const onSeeked=()=>finish();
+   const timeout=setTimeout(()=>finish(new Error('Video seek timed out. Try seeking to a nearby point and exporting again.')),10000);
+   video.addEventListener('seeked',onSeeked,{once:true});
+   video.currentTime=start;
+   if(Math.abs(video.currentTime-start)<0.02&&video.readyState>=2)finish();
+  });
+  draw();recorder.start(250);
+  setNotice('exportStatus','Exporting… 0%. Keep Maven Clip Studio open.');
+  await video.play();
+  await new Promise((resolve,reject)=>{
+   let finished=false;
+   const cleanup=()=>{clearTimeout(stopTimer);video.removeEventListener('timeupdate',progressHandler);video.removeEventListener('ended',stopHandler)};
+   const finish=err=>{
+    if(finished)return;finished=true;cleanup();video.pause();
+    try{if(recorder&&recorder.state!=='inactive')recorder.stop()}catch(e){}
+    if(err)reject(err);
+    else if(recorder&&recorder.state==='inactive')resolve();
+    else if(recorder)recorder.addEventListener('stop',()=>resolve(),{once:true});
+    else resolve();
+   };
+   progressHandler=()=>{
+    const pct=Math.max(0,Math.min(100,Math.floor((video.currentTime-start)/(end-start)*100)));
+    setNotice('exportStatus','Exporting… '+pct+'% · '+(video.currentTime-start).toFixed(1)+' / '+(end-start).toFixed(1)+' sec');
+    if(video.currentTime>=end-0.03)finish();
+   };
+   stopHandler=()=>finish(new Error('Video ended before the selected clip was complete.'));
+   video.addEventListener('timeupdate',progressHandler);
+   video.addEventListener('ended',stopHandler);
+   stopTimer=setTimeout(()=>finish(new Error('Export timed out. Try a shorter clip or keep the video tab active.')),Math.max(15000,(end-start)*5000+10000));
+  });
+  drawing=false;if(raf)cancelAnimationFrame(raf);stopTracks();
+  const blob=new Blob(chunks,{type:mime});
+  if(!blob.size)throw new Error('The browser produced an empty file. Try Chrome or a shorter clip.');
+  exportedBlob=blob;
+  if(exportedUrl)URL.revokeObjectURL(exportedUrl);
+  exportedUrl=URL.createObjectURL(exportedBlob);
+  clipName=($('clipTitle').value.trim()||'maven-clip').replace(/[^a-z0-9-_ ]/gi,'').replace(/\s+/g,'-')||'maven-clip';
+  const a=document.createElement('a');a.href=exportedUrl;a.download=clipName+'.webm';document.body.appendChild(a);a.click();a.remove();
+  reviewBtn.disabled=false;
+  setNotice('exportStatus','Export complete ('+(blob.size/1024/1024).toFixed(2)+' MB). Download started. Use “Review exported clip” to check the actual file before saving your post draft.','success');
+ }catch(err){
+  if(raf)cancelAnimationFrame(raf);stopTracks();
+  setNotice('exportStatus','Could not export this clip: '+(err&&err.message?err.message:'browser recording error')+'. Try a shorter clip or an up-to-date Chrome browser.','error');
+ }finally{
+  btn.disabled=false;video.pause();
+  if(Number.isFinite(oldTime)&&video.duration)video.currentTime=Math.min(oldTime,video.duration);
+ }
+};
+$('reviewExport').onclick=()=>{
+ if(!exportedUrl){setNotice('exportStatus','Export a clip first, then review it here.','error');return}
+ window.open(exportedUrl,'_blank','noopener,noreferrer');
+}; 
 $('useClipTitle').onclick=()=>{$('postTitle').value=$('clipTitle').value.trim().slice(0,100)};
 $('saveDraft').onclick=()=>{const title=$('postTitle').value.trim();if(!title){setNotice('draftStatus','Add a title before saving your draft.','error');return}const d={id:Date.now(),title,description:$('postDescription').value,hashtags:$('hashtags').value,category:$('category').value,clip:clipName||$('clipTitle').value.trim()||'Untitled clip',file:exportedBlob?'Exported clip downloaded':'No exported clip attached',status:'Needs review'};drafts.unshift(d);renderQueue();setNotice('draftStatus','Draft saved in this browser. Downloaded video files are not attached to the draft.','success')};
 function renderQueue(){const q=$('queue');if(!drafts.length){q.className='queue-empty';q.textContent='Your review queue is empty. Export a clip and save a post draft to start.';return}q.className='';q.replaceChildren();drafts.forEach(d=>{const card=document.createElement('div');card.className='clipitem';const h=document.createElement('h4');h.textContent=d.title;const p=document.createElement('p');p.textContent=d.category+' · '+d.status+' · '+d.file;const desc=document.createElement('p');desc.textContent=(d.description||'No description')+' '+(d.hashtags||'');const actions=document.createElement('div');actions.className='buttonrow';const review=document.createElement('button');review.textContent='Mark reviewed';review.onclick=()=>{d.status='Reviewed — ready for manual publish';renderQueue()};const copy=document.createElement('button');copy.textContent='Copy post text';copy.onclick=()=>{const text=d.title+'\n\n'+d.description+'\n\n'+d.hashtags;navigator.clipboard?.writeText(text).then(()=>{copy.textContent='Copied!' }).catch(()=>{prompt('Copy post text:',text)})};actions.append(review,copy);card.append(h,p,desc,actions);q.append(card)})}
