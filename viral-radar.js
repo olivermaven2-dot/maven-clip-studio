@@ -22,12 +22,12 @@
   });
   $('loadNextMoment')?.addEventListener('click',()=>{
     const queue=[...selectedMoments.values()].sort((a,b)=>(Number(b.score)||0)-(Number(a.score)||0));
-    const next=queue.find(item=>!loadedMomentKeys.has(momentKey(item)));
+    let next=queue.find(item=>!loadedMomentKeys.has(momentKey(item)));
     if(!next){
       loadedMomentKeys.clear();momentLoadIndex=0;
-      setMultiStatus('All selected clips have been loaded once. Export the current clip before selecting “Load next selected clip” again to cycle through them.','success');
-      return;
+      next=queue[0];
     }
+    if(!next){setMultiStatus('Select at least one candidate moment first.','error');return}
     const video=document.querySelector('#preview video');
     if(!video||!Number.isFinite(video.duration)||video.duration<=0){setMultiStatus('Upload the matching local video before loading selected moments.','error');return}
     const start=Math.max(0,Math.min(Number(next.start)||0,Math.max(0,video.duration-0.1)));
