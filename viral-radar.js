@@ -1,5 +1,45 @@
 (() => {
   const $ = id => document.getElementById(id);
+  const selectedMoments = new Map();
+  const loadedMomentKeys = new Set();
+  let momentLoadIndex = 0;
+  const momentKey = item => Number(item.start).toFixed(1)+'-'+Number(item.end).toFixed(1);
+  const overlapRatio = (a,b) => {
+    const overlap=Math.max(0,Math.min(Number(a.end),Number(b.end))-Math.max(Number(a.start),Number(b.start)));
+    const shorter=Math.max(0.1,Math.min(Number(a.end)-Number(a.start),Number(b.end)-Number(b.start)));
+    return overlap/shorter;
+  };
+  const updateMomentControls = () => {
+    const load=$('loadNextMoment');
+    if(load) load.textContent='Load next selected clip ('+selectedMoments.size+')';
+    if(load) load.disabled=selectedMoments.size===0;
+  };
+  $('clearMomentSelection')?.addEventListener('click',()=>{
+    selectedMoments.clear();loadedMomentKeys.clear();momentLoadIndex=0;
+    updateMomentControls();
+    const status=$('multiClipStatus');status.classList.add('hidden');
+    radar.render(Array.isArray(radar.candidates)?radar.candidates.slice(0,8):[]);
+  });
+  $('loadNextMoment')?.addEventListener('click',()=>{
+    const queue=[...selectedMoments.values()].sort((a,b)=>(Number(b.score)||0)-(Number(a.score)||0));
+    const next=queue.find(item=>!loadedMomentKeys.has(momentKey(item)));
+    if(!next){
+      loadedMomentKeys.clear();momentLoadIndex=0;
+      setMultiStatus('All selected clips have been loaded once. Export the current clip before selecting “Load next selected clip” again to cycle through them.','success');
+      return;
+    }
+    const video=document.querySelector('#preview video');
+    if(!video||!Number.isFinite(video.duration)||video.duration<=0){setMultiStatus('Upload the matching local video before loading selected moments.','error');return}
+    const start=Math.max(0,Math.min(Number(next.start)||0,Math.max(0,video.duration-0.1)));
+    const end=Math.min(video.duration,Math.max(start+0.5,Number(next.end)||start+0.5));
+    if(end<=start){setMultiStatus('This selected moment has invalid boundaries. Re-run the scan.','error');return}
+    $('startTime').value=start.toFixed(1);$('endTime').value=end.toFixed(1);
+    makeAutoMetadata(next);
+    loadedMomentKeys.add(momentKey(next));momentLoadIndex++;
+    $('startTime').scrollIntoView({behavior:'smooth',block:'center'});
+    setMultiStatus('Loaded selected clip '+momentLoadIndex+' of '+queue.length+' (score '+Math.round(Number(next.score)||0)+'/100). Export this clip separately, then load the next selected moment.','success');
+  });
+  function setMultiStatus(message,kind=''){const el=$('multiClipStatus');if(!el)return;el.textContent=message;el.className='notice'+(kind?' '+kind:'');el.classList.remove('hidden')}
   const radar = {
     candidates: [],
     audioContext: null,
@@ -309,8 +349,31 @@
       list.append(timeline);
       items.forEach((item, index) => {
         const card = document.createElement('div'); card.className = 'clipitem';
+        const key=momentKey(item);
+        const selectRow=document.createElement('label');selectRow.className='radar-select-row';
+        const select=document.createElement('input');select.type='checkbox';select.checked=selectedMoments.has(key);
+        const selectText=document.createElement('span');selectText.textContent='Add to multi-clip queue';
+        select.addEventListener('change',()=>{
+          if(select.checked){
+            const conflict=[...selectedMoments.values()].find(other=>momentKey(other)!==key&&overlapRatio(item,other)>=0.5);
+            if(conflict){
+              select.checked=false;
+              setMultiStatus('Not added: this moment overlaps too much with another selected clip ('+this.time(conflict.start)+'–'+this.time(conflict.end)+'). Choose a different moment to avoid near-duplicate exports.','error');
+              return;
+            }
+            selectedMoments.set(key,item);loadedMomentKeys.delete(key);
+            setMultiStatus('Added '+this.time(item.start)+'–'+this.time(item.end)+'. Selected moments are exported one at a time so each can keep its own title and post metadata.','success');
+          }else{
+            selectedMoments.delete(key);loadedMomentKeys.delete(key);
+            setMultiStatus('Removed '+this.time(item.start)+'–'+this.time(item.end)+' from the multi-clip queue.','success');
+          }
+          updateMomentControls();
+        });
+        selectRow.append(select,selectText);
+        card.append(selectRow);
         card.dataset.candidateIndex = String(index);
         const title = document.createElement('h4'); title.textContent = (index + 1) + '. ' + this.time(item.start) + '–' + this.time(item.end) + ' · Review candidate';
+        card.append(title);
         const meta = document.createElement('p'); meta.textContent = item.reason + ' · heuristic score ' + Math.round(item.score) + '/100';
         const evidence = document.createElement('div'); evidence.className = 'radar-evidence';
         const labels = { frames:'Visual change', audio:'Audio energy', transcript:'Transcript cue' };
@@ -364,8 +427,9 @@
           editor.scrollIntoView({ behavior: 'smooth', block: 'center' });
           this.setStatus('Candidate copied into the editor. Preview it and adjust the boundaries before exporting.', 'success');
         };
-        actions.append(preview, use); card.append(title, meta, evidence, excerpt, actions); list.append(card);
+        actions.append(preview, use); card.append(meta, evidence, excerpt, actions); list.append(card);
       });
+      updateMomentControls();
     }
   };
   window.mavenRadar = radar;
