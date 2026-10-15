@@ -2,6 +2,8 @@
   const $ = id => document.getElementById(id);
   const radar = {
     candidates: [],
+    audioContext: null,
+    audioSource: null,
     setStatus(message, kind = '') {
       const el = $('radarStatus');
       el.textContent = message;
@@ -119,9 +121,10 @@
       const originalMuted = video.muted;
       const samples = [];
       try {
-        context = new AudioContextClass();
+        context = this.audioContext || (this.audioContext = new AudioContextClass());
         await context.resume();
-        source = context.createMediaElementSource(video);
+        source = this.audioSource || (this.audioSource = context.createMediaElementSource(video));
+        source.disconnect();
         analyser = context.createAnalyser();
         analyser.fftSize = 1024;
         gain = context.createGain();
@@ -197,7 +200,8 @@
           video.currentTime = target;
         } catch (e) {}
         if (!wasPaused) video.play().catch(() => {});
-        if (context) try { await context.close(); } catch (e) {}
+        if (analyser) try { analyser.disconnect(); } catch (e) {}
+        if (gain) try { gain.disconnect(); } catch (e) {}
       }
     },
     combineCandidates(items) {
