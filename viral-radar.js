@@ -110,7 +110,7 @@
       const video = document.querySelector('#preview video');
       if (!video || !video.currentSrc || !Number.isFinite(video.duration) || !video.videoWidth) return [];
       const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-      if (!AudioContextClass || !video.captureStream && !video.mozCaptureStream) {
+      if (!AudioContextClass) {
         this.setStatus('This browser cannot analyze the video audio stream. Visual and transcript clues will still be used.');
         return [];
       }
