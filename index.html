@@ -115,13 +115,18 @@ $('autoBuildClip').onclick=()=>{
  const items=Array.isArray(window.mavenRadar?.candidates)?window.mavenRadar.candidates:[];
  if(!video||!Number.isFinite(video.duration)||video.duration<=0){setNotice('radarStatus','Upload a local video first so the clip boundaries can be checked.','error');return}
  if(!items.length){setNotice('radarStatus','Run Scan video + audio or Analyze transcript / notes first, then auto-pick the top candidate.','error');return}
- const candidate=[...items].sort((a,b)=>(b.score||0)-(a.score||0))[0];
- const start=Math.max(0,Math.min(candidate.start,video.duration-0.1));
- const end=Math.max(start+0.5,Math.min(candidate.end,video.duration));
+ const candidate=[...items].sort((a,b)=>(Number(b.score)||0)-(Number(a.score)||0))[0];
+ const start=Math.max(0,Math.min(Number(candidate.start)||0,Math.max(0,video.duration-0.1)));
+ const end=Math.min(video.duration,Math.max(start+0.5,Number(candidate.end)||start+0.5));
+ if(!Number.isFinite(start)||!Number.isFinite(end)||end<=start){setNotice('radarStatus','The top candidate has invalid clip boundaries. Re-run the scan or transcript analysis, then try again.','error');return}
  $('startTime').value=start.toFixed(1);$('endTime').value=end.toFixed(1);
  makeAutoMetadata(candidate);
  $('startTime').scrollIntoView({behavior:'smooth',block:'center'});
- setNotice('radarStatus','Top-ranked candidate selected and a draft title, description and hashtags generated. These are rule-based suggestions—review timing, context and metadata before exporting or posting.','success');
+ const rawSignals=Array.isArray(candidate.signals)&&candidate.signals.length?candidate.signals:[candidate.source||'unknown'];
+ const labels={frames:'visual scan',audio:'audio energy',transcript:'transcript / notes'};
+ const evidence=[...new Set(rawSignals)].map(signal=>labels[signal]||signal).join(' + ');
+ const evidenceText=evidence==='unknown'?'analysis evidence':evidence;
+ setNotice('radarStatus','Auto-picked the highest-ranked candidate using '+evidenceText+'. Title, description and hashtags are rule-based suggestions. Preview the clip and review its context before exporting or posting.','success');
 };
 function setYtStatus(message,kind=''){const el=$('ytDiscoveryStatus');el.textContent=message;el.classList.remove('hidden','success','error');if(kind)el.classList.add(kind)}
 function compactViews(n){n=Number(n)||0;return n>=1e9?(n/1e9).toFixed(1)+'B':n>=1e6?(n/1e6).toFixed(1)+'M':n>=1e3?(n/1e3).toFixed(1)+'K':String(n)}
