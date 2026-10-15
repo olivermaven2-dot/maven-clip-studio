@@ -19,7 +19,9 @@
     },
     safeWindow(center, duration, requestedLength) {
       const length = Math.min(duration, Math.max(1, requestedLength || this.clipLength()));
-      let start = Math.max(0, center - length * 0.35);
+      // Keep context before the event, but reserve most of the clip for the reaction/payoff.
+      const preRoll = length * 0.30;
+      let start = Math.max(0, Math.min(duration - length, center - preRoll));
       let end = Math.min(duration, start + length);
       start = Math.max(0, end - length);
       return { start, end };
@@ -216,11 +218,16 @@
           if (!target.signals.includes(item.source)) target.signals.push(item.source);
           target.signalScores.push(Number(item.score) || 0);
           if (item.source === 'transcript' && item.excerpt) target.excerpt = item.excerpt;
-          target.start = Math.max(0, Math.min(target.start, item.start));
-          target.end = Math.max(target.end, item.end);
+          // Merge the evidence, not the time ranges: candidate windows should still
+          // respect the user's selected clip length instead of growing when clues overlap.
+          if (Number(item.score) > Number(target.score)) target.center = item.center;
         }
       });
+      const video = document.querySelector('#preview video');
+      const duration = video && Number.isFinite(video.duration) && video.duration > 0
+        ? video.duration : Math.max(1, ...merged.map(item => Number(item.end) || 0));
       return merged.map(item => {
+        const window = this.safeWindow(Number(item.center) || 0, duration, this.clipLength());
         const signals = item.signals || [item.source];
         const values = item.signalScores || [Number(item.score) || 0];
         const average = values.reduce((sum,value)=>sum+value,0) / values.length;
@@ -228,7 +235,7 @@
         const score = Math.min(98, Math.round(average + bonus));
         const labels = { frames:'visual change', audio:'audio energy', transcript:'transcript cue' };
         const evidence = signals.map(s => labels[s] || s).join(' + ');
-        return { ...item, score, reason: signals.length > 1 ? 'Combined evidence: ' + evidence : item.reason, excerpt: item.excerpt || 'Review the full context and sound.', source: signals.length > 1 ? 'combined' : item.source };
+        return { ...item, ...window, score, reason: signals.length > 1 ? 'Combined evidence: ' + evidence : item.reason, excerpt: item.excerpt || 'Review the full context and sound.', source: signals.length > 1 ? 'combined' : item.source };
       }).sort((a,b)=>b.score-a.score).map((item,i)=>({ ...item, id:'candidate-'+i }));
     },
     render(items) {
