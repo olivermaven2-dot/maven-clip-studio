@@ -11,6 +11,7 @@ A mobile-friendly, GitHub Pages-first prototype for preparing short-form video c
 - Keep a local review queue and copy post text.
 - **Viral Radar:** scan sampled frames from a loaded local video for visual-change candidates, or analyze a pasted transcript / timestamped notes for possible hooks.
 - Send a candidate moment's suggested start/end times into the existing editor for manual preview and adjustment.
+- Choose a suggested clip duration (8, 15, 20, or 30 seconds) and preview each candidate in the loaded local video before sending it to the editor.
 
 ## Important limitations
 - A YouTube link is a preview source, not a downloadable source. The app cannot extract video from the embedded YouTube player. To edit and export, upload a video you own or are licensed/authorized to use.
