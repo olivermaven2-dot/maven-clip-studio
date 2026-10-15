@@ -11,7 +11,7 @@ A mobile-friendly, GitHub Pages-first prototype for preparing short-form video c
 - Keep a local review queue and copy post text.
 
 ## Important limitations
-- A YouTube link is not a downloadable source. Browser security and YouTube terms mean the app cannot extract video from the embedded player. For editing, upload a video you own or are licensed/authorized to use.
+- A YouTube link is a preview source, not a downloadable source. The app cannot extract video from the embedded YouTube player. To edit and export, upload a video you own or are licensed/authorized to use.
 - Export uses browser MediaRecorder and canvas capture; browser codec support varies. Exported clips are WebM in this prototype.
 - YouTube publishing is intentionally not connected yet. Direct publishing requires a Google Cloud project, YouTube Data API v3, OAuth authorization, and a secure backend. Never put OAuth client secrets or refresh tokens in GitHub Pages client code.
 - The review queue and post drafts are local to the current browser and are not synced across devices.
@@ -19,9 +19,9 @@ A mobile-friendly, GitHub Pages-first prototype for preparing short-form video c
 
 ## Deploy on GitHub Pages
 1. Open **Settings → Pages** in this repository.
-2. Under **Build and deployment**, select **Deploy from a branch**.
-3. Select branch **main** and folder **/(root)**, then save.
-4. Wait for the Pages build. The app should be available at:
+2. Under **Build and deployment**, set the source to **GitHub Actions**.
+3. The workflow at `.github/workflows/pages.yml` deploys the root folder on pushes to `main`.
+4. After the workflow succeeds, open:
    https://olivermaven2-dot.github.io/maven-clip-studio/
 
 No build step is required.
