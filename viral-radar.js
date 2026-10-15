@@ -361,6 +361,7 @@
       });
     }
   };
+  window.mavenRadar = radar;
   $('scanVideo').addEventListener('click', async () => {
     $('scanVideo').disabled = true;
     try {
