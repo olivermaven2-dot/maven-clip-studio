@@ -26,16 +26,16 @@
 </aside></div>
 <section class="panel" id="viralRadar" style="margin-top:18px">
   <h3>05 / Viral Radar <span class="tag">DISCOVERY LAB</span></h3>
-  <p class="radar-help">Find moments worth reviewing. Local video scans rank noticeable visual changes; transcript analysis ranks possible hooks and reactions. These are heuristic clues, not guaranteed viral predictions.</p>
+  <p class="radar-help">Find moments worth reviewing. Local scans combine noticeable visual changes, audio-energy peaks, and optional transcript hooks. Combined evidence can raise a candidate for review; it cannot predict virality.</p>
   <div class="radar-grid">
     <div class="field"><label for="radarTranscript">Transcript or timestamped notes (works with YouTube links too)</label><textarea id="radarTranscript" rows="5" placeholder="[00:14] Wait until you see what happens next!&#10;00:38 This is the biggest mistake beginners make.&#10;01:12 Here is how to fix it…"></textarea></div>
     <div class="field"><label>Discovery tips</label><div class="caption-preview">For timestamped notes, start each line with a time like [00:14] or 01:12. Paste only text you have permission to use. For an uploaded video, scan frames as an extra clue. YouTube player video itself is not extracted or downloaded.</div><div class="small" style="margin-top:8px">Candidates remain local in this tab. Check context, rights, audio, and the full clip before using it.</div></div>
   </div>
-  <div class="radar-grid" style="margin-top:12px"><div class="field"><label for="radarClipLength">Suggested clip length</label><select id="radarClipLength"><option value="8">8 seconds</option><option value="15" selected>15 seconds</option><option value="20">20 seconds</option><option value="30">30 seconds</option></select></div><div class="field"><label>Preview candidates</label><div class="small">Play each moment in the uploaded video before choosing it.</div></div></div><div class="radar-actions"><button id="analyzeTranscript" type="button">Analyze transcript / notes</button><button id="scanVideo" type="button" class="primary">Scan uploaded video frames</button></div>
+  <div class="radar-grid" style="margin-top:12px"><div class="field"><label for="radarClipLength">Suggested clip length</label><select id="radarClipLength"><option value="8">8 seconds</option><option value="15" selected>15 seconds</option><option value="20">20 seconds</option><option value="30">30 seconds</option></select></div><div class="field"><label>Preview candidates</label><div class="small">Play each moment in the uploaded video before choosing it.</div></div></div><div class="radar-actions"><button id="analyzeTranscript" type="button">Analyze transcript / notes</button><button id="scanVideo" type="button" class="primary">Scan video + audio</button></div>
   <div id="radarStatus" class="notice hidden" role="status"></div>
   <div class="divider"></div><h3 style="margin-bottom:8px">Candidate moments</h3>
   <div id="radarCandidates" class="queue-empty">No candidates yet. Scan a local video or paste a transcript / timestamped notes.</div>
-  <p class="radar-score-note">Score meaning: a relative ranking from simple visual-change or language-cue heuristics. It is not a percentage chance of going viral and is not based on actual views, watch time, or audience data.</p>
+  <p class="radar-score-note">Score meaning: a relative heuristic ranking from visual changes, audio-energy peaks, and transcript cues. Agreement across signals can raise a candidate; this is not a percentage chance of going viral and is not based on actual views, watch time, or audience data.</p>
 </section>
 <div class="footer">Maven Clip Studio · Browser-first prototype · No video is uploaded by this page</div></main>
 <script src="viral-radar.js"></script>
