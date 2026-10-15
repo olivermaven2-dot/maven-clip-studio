@@ -104,6 +104,88 @@
         return { id: 'frame-' + i, ...w, center: s.t, score: Math.min(92, Math.round(30 + s.score * 0.7)), reason: 'Visual scene-change candidate', excerpt: 'Noticeable frame change near ' + this.time(s.t), source: 'frames' };
       });
     },
+    async scanAudioEnergy() {
+      const video = document.querySelector('#preview video');
+      if (!video || !video.currentSrc || !Number.isFinite(video.duration)) return [];
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContextClass) throw new Error('Audio analysis is not supported in this browser.');
+      let context;
+      try {
+        const response = await fetch(video.currentSrc);
+        if (!response.ok) throw new Error('Could not read the local video audio.');
+        const bytes = await response.arrayBuffer();
+        context = new AudioContextClass();
+        const buffer = await context.decodeAudioData(bytes.slice(0));
+        const sampleRate = buffer.sampleRate;
+        const hop = Math.max(1, Math.floor(sampleRate * 0.25));
+        const rms = [];
+        for (let start = 0; start < buffer.length; start += hop) {
+          const end = Math.min(buffer.length, start + hop);
+          let sum = 0;
+          for (let ch = 0; ch < buffer.numberOfChannels; ch++) {
+            const data = buffer.getChannelData(ch);
+            for (let i = start; i < end; i++) sum += data[i] * data[i];
+          }
+          rms.push({ t: start / sampleRate, energy: Math.sqrt(sum / Math.max(1, (end - start) * buffer.numberOfChannels)) });
+        }
+        if (!rms.length) return [];
+        const sorted = rms.map(x => x.energy).sort((a,b) => a-b);
+        const baseline = sorted[Math.floor((sorted.length - 1) * 0.25)] || 0;
+        const high = sorted[Math.floor((sorted.length - 1) * 0.90)] || 0;
+        const spread = Math.max(0.00001, high - baseline);
+        const peaks = rms.map((x, i) => ({
+          center: x.t,
+          energy: x.energy,
+          score: Math.max(0, Math.min(100, 25 + (x.energy - baseline) / spread * 55)),
+          index: i
+        })).filter(x => x.center < video.duration);
+        peaks.sort((a,b) => b.score-a.score);
+        const chosen = [];
+        for (const p of peaks) {
+          if (chosen.every(c => Math.abs(c.center - p.center) >= 4)) chosen.push(p);
+          if (chosen.length >= 6) break;
+        }
+        return chosen.map((p,i) => {
+          const w = this.safeWindow(p.center, video.duration, this.clipLength());
+          return { id:'audio-'+i, ...w, center:p.center, score:Math.round(p.score), reason:'Audio-energy peak — listen for a reaction, emphasis, or meaningful sound', excerpt:'Higher-than-baseline audio energy near '+this.time(p.center), source:'audio' };
+        });
+      } catch (err) {
+        if (err && /decode|buffer|format|encoding/i.test(err.message || '')) {
+          this.setStatus('Audio track could not be decoded in this browser. Visual and transcript clues can still be used.');
+          return [];
+        }
+        throw err;
+      } finally {
+        if (context) try { await context.close(); } catch (e) {}
+      }
+    },
+    combineCandidates(items) {
+      const groups = ['frames', 'audio', 'transcript'];
+      const merged = [];
+      items.forEach(item => {
+        let target = merged.find(existing => Math.abs(existing.center - item.center) <= Math.max(3, Math.min(8, this.clipLength() * 0.35)));
+        if (!target) {
+          target = { ...item, signals: [item.source], signalScores: [Number(item.score) || 0] };
+          merged.push(target);
+        } else {
+          if (!target.signals.includes(item.source)) target.signals.push(item.source);
+          target.signalScores.push(Number(item.score) || 0);
+          if (item.source === 'transcript' && item.excerpt) target.excerpt = item.excerpt;
+          target.start = Math.max(0, Math.min(target.start, item.start));
+          target.end = Math.max(target.end, item.end);
+        }
+      });
+      return merged.map(item => {
+        const signals = item.signals || [item.source];
+        const values = item.signalScores || [Number(item.score) || 0];
+        const average = values.reduce((sum,value)=>sum+value,0) / values.length;
+        const bonus = Math.max(0, signals.length - 1) * 8;
+        const score = Math.min(98, Math.round(average + bonus));
+        const labels = { frames:'visual change', audio:'audio energy', transcript:'transcript cue' };
+        const evidence = signals.map(s => labels[s] || s).join(' + ');
+        return { ...item, score, reason: signals.length > 1 ? 'Combined evidence: ' + evidence : item.reason, excerpt: item.excerpt || 'Review the full context and sound.', source: signals.length > 1 ? 'combined' : item.source };
+      }).sort((a,b)=>b.score-a.score).map((item,i)=>({ ...item, id:'candidate-'+i }));
+    },
     render(items) {
       const list = $('radarCandidates');
       list.replaceChildren();
@@ -158,12 +240,13 @@
     $('scanVideo').disabled = true;
     try {
       const items = await radar.scanFrames();
-      radar.candidates = items;
+      const audioItems = await radar.scanAudioEnergy();
       const transcript = $('radarTranscript').value.trim();
-      if (transcript) radar.candidates = radar.candidates.concat(radar.scoreText(transcript, document.querySelector('#preview video')?.duration || 600));
-      radar.candidates.sort((a,b) => b.score-a.score);
+      const transcriptItems = transcript ? radar.scoreText(transcript, document.querySelector('#preview video')?.duration || 600) : [];
+      radar.candidates = radar.combineCandidates(items.concat(audioItems, transcriptItems));
       radar.render(radar.candidates.slice(0,8));
-      radar.setStatus(items.length ? 'Scan complete. These are visual-change clues, not a prediction of virality. Review every candidate.' : 'No usable frames were found.', items.length ? 'success' : 'error');
+      const signalCount = [items.length ? 'visual' : '', audioItems.length ? 'audio' : '', transcriptItems.length ? 'transcript' : ''].filter(Boolean);
+      radar.setStatus(radar.candidates.length ? 'Scan complete using ' + (signalCount.join(', ') || 'available') + ' clues. Combined scores are review priorities, not predictions of virality.' : 'No usable clues were found.', radar.candidates.length ? 'success' : 'error');
     } catch (err) {
       radar.setStatus(err.message || 'Frame scan failed. Try another local video.', 'error');
     } finally { $('scanVideo').disabled = false; }
