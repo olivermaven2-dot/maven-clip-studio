@@ -22,6 +22,24 @@
 <aside class="stack">
 <div class="panel"><h3>03 / Prepare the post</h3><div class="field"><label for="postTitle">YouTube title</label><input id="postTitle" maxlength="100" placeholder="Write a clear, engaging title"></div><div class="field"><label for="postDescription">Description</label><textarea id="postDescription" rows="4" placeholder="Add context, attribution or original commentary…"></textarea></div><div class="field"><label for="hashtags">Hashtags</label><input id="hashtags" placeholder="#shorts #highlights"></div><div class="field"><label for="category">Content type</label><select id="category"><option>General</option><option>Podcast / Interview</option><option>Football / Sports commentary</option><option>Motivation</option><option>Gaming</option><option>Education</option><option>Comedy</option><option>Music</option><option>News / Commentary</option></select></div><div class="buttonrow"><button id="useClipTitle" type="button">Use clip name as title</button><button id="saveDraft" class="primary" type="button">Save post draft</button></div><div id="draftStatus" class="notice hidden" role="status"></div></div>
 <div class="panel"><h3>04 / Review queue <span class="tag">MANUAL REVIEW</span></h3><p class="muted">Only clips you approve should be published. Drafts are stored in this browser; exported video files stay on your device.</p><div id="queue" class="queue-empty">Your review queue is empty. Export a clip and save a post draft to start.</div><div class="divider"></div><button id="connectYoutube" type="button" class="primary" style="width:100%">Connect YouTube channel</button><div id="youtubeAuthStatus" class="notice hidden"></div><p class="small">Publishing is not enabled until a secure OAuth backend and YouTube Data API project are configured. Never paste a Google password, API secret, or access token into this page.</p></div>
+
+<section class="panel" id="youtubeDiscovery" style="margin-top:18px">
+<h3>06 / YouTube Viral Video Finder <span class="tag">YOUTUBE DATA API</span></h3>
+<p class="radar-help">Search public YouTube videos and rank fast-growing candidates using public view counts and upload age. This finds videos that look popular or fast-moving; it cannot prove a video is viral or reveal private analytics.</p>
+<div class="radar-grid">
+<div class="field"><label for="ytApiKey">YouTube Data API key</label><input id="ytApiKey" type="password" autocomplete="off" placeholder="Paste your restricted API key for this session"><p class="small">Key stays in this page's memory and is not saved by Maven Clip Studio. Restrict it in Google Cloud to YouTube Data API v3 and your website referrer.</p></div>
+<div class="field"><label for="ytSearchQuery">Topic / keywords</label><input id="ytSearchQuery" placeholder="e.g. football skills, funny moments, gaming"></div>
+</div>
+<div class="radar-grid" style="margin-top:12px">
+<div class="field"><label for="ytRegion">Region</label><select id="ytRegion"><option value="KE" selected>Kenya</option><option value="US">United States</option><option value="GB">United Kingdom</option><option value="IN">India</option><option value="NG">Nigeria</option><option value="ZA">South Africa</option><option value="WORLD">Worldwide / not region-filtered</option></select></div>
+<div class="field"><label for="ytPeriod">Upload period</label><select id="ytPeriod"><option value="1">Past 24 hours</option><option value="7" selected>Past 7 days</option><option value="30">Past 30 days</option><option value="90">Past 90 days</option></select></div>
+</div>
+<div class="radar-actions"><button id="findYoutubeVideos" class="primary" type="button">Find popular videos</button><button id="clearYoutubeResults" type="button">Clear results</button></div>
+<div id="ytDiscoveryStatus" class="notice hidden" role="status"></div>
+<div id="ytDiscoveryResults" class="queue-empty" style="margin-top:12px">Add an API key and topic to search public YouTube video metadata.</div>
+<p class="radar-score-note">Finder results link to YouTube; this tool does not download other creators' videos. Use your own or authorized source files in the clip editor. API quota and regional availability may limit results.</p>
+</section>
+
 <div class="panel"><h3>Creator checklist</h3><div class="small" style="line-height:2">✓ Use content you own, licensed content, or content you have permission to edit.<br>✓ Add meaningful original commentary or editing where appropriate.<br>✓ Check music rights, title, captions and final framing.<br>✓ Review YouTube's copyright and monetization rules before posting.</div></div>
 </aside></div>
 <section class="panel" id="viralRadar" style="margin-top:18px">
@@ -31,7 +49,7 @@
     <div class="field"><label for="radarTranscript">Transcript or timestamped notes (works with YouTube links too)</label><textarea id="radarTranscript" rows="5" placeholder="[00:14] Wait until you see what happens next!&#10;00:38 This is the biggest mistake beginners make.&#10;01:12 Here is how to fix it…"></textarea></div>
     <div class="field"><label>Discovery tips</label><div class="caption-preview">For timestamped notes, start each line with a time like [00:14] or 01:12. Paste only text you have permission to use. For an uploaded video, scan frames as an extra clue. YouTube player video itself is not extracted or downloaded.</div><div class="small" style="margin-top:8px">Candidates remain local in this tab. Check context, rights, audio, and the full clip before using it.</div></div>
   </div>
-  <div class="radar-grid" style="margin-top:12px"><div class="field"><label for="radarClipLength">Suggested clip length</label><select id="radarClipLength"><option value="8">8 seconds</option><option value="15" selected>15 seconds</option><option value="20">20 seconds</option><option value="30">30 seconds</option></select></div><div class="field"><label>Preview candidates</label><div class="small">Play each moment in the uploaded video before choosing it.</div></div></div><div class="radar-actions"><button id="analyzeTranscript" type="button">Analyze transcript / notes</button><button id="scanVideo" type="button" class="primary">Scan video + audio</button></div>
+  <div class="radar-grid" style="margin-top:12px"><div class="field"><label for="radarClipLength">Suggested clip length</label><select id="radarClipLength"><option value="8">8 seconds</option><option value="15" selected>15 seconds</option><option value="20">20 seconds</option><option value="30">30 seconds</option></select></div><div class="field"><label>Preview candidates</label><div class="small">Play each moment in the uploaded video before choosing it.</div></div></div><div class="radar-actions"><button id="analyzeTranscript" type="button">Analyze transcript / notes</button><button id="scanVideo" type="button" class="primary">Scan video + audio</button><button id="autoBuildClip" type="button">Auto-pick clip + metadata</button></div>
   <div id="radarStatus" class="notice hidden" role="status"></div>
   <div class="divider"></div><h3 style="margin-bottom:8px">Candidate moments</h3>
   <div id="radarCandidates" class="queue-empty">No candidates yet. Scan a local video or paste a transcript / timestamped notes.</div>
@@ -76,5 +94,71 @@ function renderQueue(){const q=$('queue');if(!drafts.length){q.className='queue-
 function getYoutubeId(raw){try{const u=new URL(raw);if(u.hostname==='youtu.be')return u.pathname.slice(1).split('/')[0];if(u.hostname.endsWith('youtube.com')||u.hostname.endsWith('youtube-nocookie.com')){if(u.pathname==='/watch')return u.searchParams.get('v');const m=u.pathname.match(/^\/(embed|shorts|live)\/([^/?]+)/);if(m)return m[2]}}catch(e){}return null}
 $('loadYoutube').onclick=()=>{const id=getYoutubeId($('youtubeUrl').value.trim());if(!id||!/^[\w-]{11}$/.test(id)){setNotice('exportStatus','Enter a valid public YouTube video URL.','error');$('exportStatus').classList.remove('hidden');return}const box=$('youtubePreview');box.classList.remove('hidden');box.replaceChildren();const iframe=document.createElement('iframe');iframe.id='youtubeFrame';iframe.title='YouTube video preview';iframe.src='https://www.youtube-nocookie.com/embed/'+id;iframe.allow='accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';iframe.allowFullscreen=true;box.append(iframe);setNotice('exportStatus','YouTube preview loaded. To edit and export, use a video file you own or have permission to use.','success')};
 $('connectYoutube').onclick=()=>{setNotice('youtubeAuthStatus','Secure publishing setup is the next integration step: create a Google Cloud project, enable YouTube Data API v3, configure OAuth consent, and add a backend to protect credentials. No sign-in or upload was started.');};
+
+function makeAutoMetadata(candidate){
+ const category=$('category').value;
+ const transcript=$('radarTranscript').value.trim();
+ const lines=transcript.split(/\n+/).map(s=>s.replace(/^\s*(?:\[?\d{1,2}:\d{2}(?::\d{2})?\]?\s*)/,'').trim()).filter(Boolean);
+ const text=(candidate&&candidate.excerpt&&candidate.excerpt!=='Review the full context and sound before using this moment.'?candidate.excerpt:lines[0])||'A moment worth watching';
+ const clean=text.replace(/[#<>]/g,' ').replace(/\s+/g,' ').trim();
+ const short=clean.split(/(?<=[.!?])\s+/)[0].slice(0,72).trim();
+ const categoryTags={'Football / Sports commentary':['#football','#sports','#highlights'],'Gaming':['#gaming','#gameplay','#shorts'],'Podcast / Interview':['#podcast','#interview','#shorts'],'Motivation':['#motivation','#mindset','#shorts'],'Education':['#learning','#tips','#shorts'],'Comedy':['#comedy','#funny','#shorts'],'Music':['#music','#shorts'],'News / Commentary':['#commentary','#news','#shorts'],'General':['#shorts','#highlights','#mustwatch']};
+ const tags=categoryTags[category]||categoryTags.General;
+ const title=(short?short+' | ':'')+ (category==='General'?'Watch This Moment':category+' Moment');
+ $('clipTitle').value=title.slice(0,90);
+ $('postTitle').value=title.slice(0,100);
+ $('postDescription').value='A selected '+category.toLowerCase()+' moment from '+$('clipTitle').value+'. Review the full context and add your own commentary or attribution before publishing.';
+ $('hashtags').value=tags.join(' ');
+}
+$('autoBuildClip').onclick=()=>{
+ const video=document.querySelector('#preview video');
+ const items=Array.isArray(window.radar?.candidates)?window.radar.candidates:[];
+ if(!video||!Number.isFinite(video.duration)||video.duration<=0){setNotice('radarStatus','Upload a local video first so the clip boundaries can be checked.','error');return}
+ if(!items.length){setNotice('radarStatus','Run Scan video + audio or Analyze transcript / notes first, then auto-pick the top candidate.','error');return}
+ const candidate=[...items].sort((a,b)=>(b.score||0)-(a.score||0))[0];
+ const start=Math.max(0,Math.min(candidate.start,video.duration-0.1));
+ const end=Math.max(start+0.5,Math.min(candidate.end,video.duration));
+ $('startTime').value=start.toFixed(1);$('endTime').value=end.toFixed(1);
+ makeAutoMetadata(candidate);
+ $('startTime').scrollIntoView({behavior:'smooth',block:'center'});
+ setNotice('radarStatus','Top-ranked candidate selected and a draft title, description and hashtags generated. These are rule-based suggestions—review timing, context and metadata before exporting or posting.','success');
+};
+function setYtStatus(message,kind=''){const el=$('ytDiscoveryStatus');el.textContent=message;el.classList.remove('hidden','success','error');if(kind)el.classList.add(kind)}
+function compactViews(n){n=Number(n)||0;return n>=1e9?(n/1e9).toFixed(1)+'B':n>=1e6?(n/1e6).toFixed(1)+'M':n>=1e3?(n/1e3).toFixed(1)+'K':String(n)}
+$('clearYoutubeResults').onclick=()=>{$('ytDiscoveryResults').className='queue-empty';$('ytDiscoveryResults').textContent='Search results cleared.';clearNotice('ytDiscoveryStatus')};
+$('findYoutubeVideos').onclick=async()=>{
+ const key=$('ytApiKey').value.trim(),query=$('ytSearchQuery').value.trim(),region=$('ytRegion').value,days=Number($('ytPeriod').value),btn=$('findYoutubeVideos');
+ if(!key){setYtStatus('Paste a YouTube Data API key. It is used only for this search and is not stored.','error');return}
+ if(!query){setYtStatus('Enter a topic or keywords to search for.','error');return}
+ btn.disabled=true;$('ytDiscoveryResults').className='queue-empty';$('ytDiscoveryResults').textContent='Searching public YouTube video metadata…';
+ try{
+  const after=new Date(Date.now()-days*86400000).toISOString();
+  const params=new URLSearchParams({part:'snippet',type:'video',q:query,order:'viewCount',publishedAfter:after,maxResults:'25',key});
+  if(region!=='WORLD')params.set('regionCode',region);
+  const searchRes=await fetch('https://www.googleapis.com/youtube/v3/search?'+params.toString());
+  const searchData=await searchRes.json();
+  if(!searchRes.ok)throw new Error(searchData.error?.message||'YouTube search failed. Check the API key and quota.');
+  const ids=(searchData.items||[]).map(x=>x.id?.videoId).filter(Boolean);
+  if(!ids.length){$('ytDiscoveryResults').className='queue-empty';$('ytDiscoveryResults').textContent='No matching public videos found for this topic and period.';setYtStatus('Search complete: no matching videos. Try broader keywords or a longer period.','success');return}
+  const statsParams=new URLSearchParams({part:'statistics,contentDetails,snippet',id:ids.join(','),key});
+  const statsRes=await fetch('https://www.googleapis.com/youtube/v3/videos?'+statsParams.toString());
+  const statsData=await statsRes.json();
+  if(!statsRes.ok)throw new Error(statsData.error?.message||'Could not load video statistics.');
+  const now=Date.now();
+  const items=(statsData.items||[]).map(v=>{const views=Number(v.statistics?.viewCount)||0;const published=Date.parse(v.snippet?.publishedAt||'')||now;const ageHours=Math.max(1,(now-published)/3600000);return {...v,views,ageHours,velocity:views/ageHours}}).sort((a,b)=>b.velocity-a.velocity);
+  const box=$('ytDiscoveryResults');box.className='';box.replaceChildren();
+  items.forEach((v,i)=>{
+   const card=document.createElement('div');card.className='clipitem';
+   const title=document.createElement('h4');title.textContent=(i+1)+'. '+(v.snippet?.title||'Untitled video');
+   const meta=document.createElement('p');meta.textContent=(v.snippet?.channelTitle||'Unknown channel')+' · '+compactViews(v.views)+' views · '+(v.ageHours<48?Math.round(v.ageHours)+' hours old':Math.round(v.ageHours/24)+' days old')+' · ~'+compactViews(v.velocity)+' views/hour';
+   const desc=document.createElement('p');desc.textContent=(v.snippet?.description||'No description available').slice(0,220);
+   const link=document.createElement('a');link.href='https://www.youtube.com/watch?v='+encodeURIComponent(v.id);link.target='_blank';link.rel='noopener noreferrer';link.textContent='Watch on YouTube';
+   card.append(title,meta,desc,link);box.append(card);
+  });
+  setYtStatus('Found '+items.length+' public videos. Ranked by approximate views per hour; view velocity is only a rough signal and does not measure retention, likes or audience fit.','success');
+ }catch(err){$('ytDiscoveryResults').className='queue-empty';$('ytDiscoveryResults').textContent='Could not retrieve results.';setYtStatus(err.message||'Search failed. Check your connection and API key.','error')}
+ finally{btn.disabled=false}
+};
+
 })();
 </script></body></html>
