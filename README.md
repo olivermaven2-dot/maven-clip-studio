@@ -7,6 +7,7 @@ A mobile-friendly, GitHub Pages-first prototype for preparing short-form video c
 - Enter a YouTube URL to embed a YouTube preview.
 - Set clip start/end timestamps and preview the selected segment.
 - Export supported browser-recorded clips as WebM, with vertical 9:16 or original framing.
+- Show live export progress, report clearer recording/seek/timeout/empty-file errors, and open the exported WebM in a separate tab for review before posting.
 - Prepare post title, description, hashtags, and category.
 - Keep a local review queue and copy post text.
 - **Viral Radar:** rank candidates by combining sampled visual scene changes, audio-energy peaks, and optional pasted transcript / timestamped-note hooks. Candidates supported by more than one signal receive a modest agreement bonus.
