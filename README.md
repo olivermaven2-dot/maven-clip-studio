@@ -32,3 +32,10 @@ A mobile-friendly, GitHub Pages-first prototype for preparing short-form video c
    https://olivermaven2-dot.github.io/maven-clip-studio/
 
 No build step is required.
+
+
+## New creator helpers
+- **Auto-pick clip + metadata** selects the highest-ranked existing Viral Radar candidate for a local uploaded video and fills clip boundaries, title, description, and category-based hashtags using transparent browser-side rules. It does not use an AI service; review and edit every suggestion.
+- **YouTube Viral Video Finder** searches public video metadata with the YouTube Data API v3. It ranks recent results by approximate views per hour and displays view counts, upload age, channel, and a link to the video. This is a rough discovery signal, not a guarantee of virality.
+- The finder requires a Google Cloud project with YouTube Data API v3 enabled and an API key. Restrict the key to the YouTube Data API and the intended website HTTP referrers. The key is held only in the current page memory and is not saved by the app; because this is a static GitHub Pages app, a browser key is still visible to the browser user and should be restricted.
+- The finder does not download YouTube videos. Only use source files you own or are authorized to edit. Publishing still requires a properly configured secure OAuth/backend integration.
