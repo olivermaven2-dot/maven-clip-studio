@@ -240,11 +240,91 @@
         return;
       }
       list.className = '';
+      const video = document.querySelector('#preview video');
+      const duration = video && Number.isFinite(video.duration) && video.duration > 0
+        ? video.duration : Math.max(1, ...items.map(item => item.end || 0));
+      const timeline = document.createElement('div');
+      timeline.className = 'radar-timeline';
+      const timelineHead = document.createElement('div');
+      timelineHead.className = 'radar-timeline-head';
+      const timelineTitle = document.createElement('strong');
+      timelineTitle.textContent = 'Signal timeline';
+      const timelineDuration = document.createElement('span');
+      timelineDuration.textContent = this.time(duration) + ' total';
+      timelineHead.append(timelineTitle, timelineDuration);
+      const ruler = document.createElement('div');
+      ruler.className = 'radar-ruler';
+      [0, .25, .5, .75, 1].forEach(fraction => {
+        const tick = document.createElement('span');
+        tick.style.left = (fraction * 100) + '%';
+        tick.textContent = this.time(duration * fraction);
+        ruler.append(tick);
+      });
+      timeline.append(timelineHead, ruler);
+      items.forEach((item, index) => {
+        const lane = document.createElement('div');
+        lane.className = 'radar-lane';
+        const laneLabel = document.createElement('span');
+        laneLabel.className = 'radar-lane-label';
+        laneLabel.textContent = (index + 1) + ' · ' + this.time(item.start);
+        const track = document.createElement('div');
+        track.className = 'radar-track';
+        const startPct = Math.max(0, Math.min(100, item.start / duration * 100));
+        const widthPct = Math.max(1, Math.min(100 - startPct, (item.end - item.start) / duration * 100));
+        const segment = document.createElement('button');
+        segment.type = 'button';
+        segment.className = 'radar-segment';
+        segment.style.left = startPct + '%';
+        segment.style.width = widthPct + '%';
+        segment.title = 'Candidate ' + (index + 1) + ': ' + this.time(item.start) + '–' + this.time(item.end) + '. ' + item.reason;
+        segment.setAttribute('aria-label', segment.title + '. Scroll to candidate details.');
+        segment.onclick = () => {
+          const target = list.querySelector('[data-candidate-index="' + index + '"]');
+          target?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        };
+        track.append(segment);
+        lane.append(laneLabel, track);
+        timeline.append(lane);
+      });
+      const legend = document.createElement('div');
+      legend.className = 'radar-legend';
+      [['visual','Visual change'],['audio','Audio energy'],['transcript','Transcript cue'],['combined','Signals overlap']].forEach(([kind,label]) => {
+        const entry = document.createElement('span');
+        entry.className = 'radar-legend-item';
+        const swatch = document.createElement('i');
+        swatch.className = 'radar-swatch ' + kind;
+        const textNode = document.createElement('span');
+        textNode.textContent = label;
+        entry.append(swatch, textNode);
+        legend.append(entry);
+      });
+      timeline.append(legend);
+      list.append(timeline);
       items.forEach((item, index) => {
         const card = document.createElement('div'); card.className = 'clipitem';
+        card.dataset.candidateIndex = String(index);
         const title = document.createElement('h4'); title.textContent = (index + 1) + '. ' + this.time(item.start) + '–' + this.time(item.end) + ' · Review candidate';
         const meta = document.createElement('p'); meta.textContent = item.reason + ' · heuristic score ' + Math.round(item.score) + '/100';
-        const excerpt = document.createElement('p'); excerpt.textContent = item.excerpt || 'Visual change detected. Preview this segment to judge its story and context.';
+        const evidence = document.createElement('div'); evidence.className = 'radar-evidence';
+        const labels = { frames:'Visual change', audio:'Audio energy', transcript:'Transcript cue' };
+        (item.signals || [item.source]).forEach(signal => {
+          const chip = document.createElement('span');
+          chip.className = 'radar-chip ' + signal;
+          chip.textContent = labels[signal] || signal;
+          evidence.append(chip);
+        });
+        if (!item.signals || item.signals.length < 2) {
+          const note = document.createElement('span');
+          note.className = 'radar-single-source';
+          note.textContent = 'Single signal — check the moment manually';
+          evidence.append(note);
+        } else {
+          const note = document.createElement('span');
+          note.className = 'radar-single-source';
+          note.textContent = 'Multiple clues align near this moment';
+          evidence.append(note);
+        }
+        const excerpt = document.createElement('p'); excerpt.textContent = item.excerpt || 'Review the full context and sound before using this moment.';
         const actions = document.createElement('div'); actions.className = 'buttonrow';
         const preview = document.createElement('button'); preview.textContent = 'Preview moment';
         preview.onclick = async () => {
@@ -277,7 +357,7 @@
           editor.scrollIntoView({ behavior: 'smooth', block: 'center' });
           this.setStatus('Candidate copied into the editor. Preview it and adjust the boundaries before exporting.', 'success');
         };
-        actions.append(preview, use); card.append(title, meta, excerpt, actions); list.append(card);
+        actions.append(preview, use); card.append(title, meta, evidence, excerpt, actions); list.append(card);
       });
     }
   };
