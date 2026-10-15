@@ -106,56 +106,97 @@
     },
     async scanAudioEnergy() {
       const video = document.querySelector('#preview video');
-      if (!video || !video.currentSrc || !Number.isFinite(video.duration)) return [];
+      if (!video || !video.currentSrc || !Number.isFinite(video.duration) || !video.videoWidth) return [];
       const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-      if (!AudioContextClass) throw new Error('Audio analysis is not supported in this browser.');
-      let context;
+      if (!AudioContextClass || !video.captureStream && !video.mozCaptureStream) {
+        this.setStatus('This browser cannot analyze the video audio stream. Visual and transcript clues will still be used.');
+        return [];
+      }
+      let context, source, analyser, gain, frameId, timerId;
+      const originalTime = video.currentTime;
+      const originalRate = video.playbackRate;
+      const wasPaused = video.paused;
+      const originalMuted = video.muted;
+      const samples = [];
       try {
-        const response = await fetch(video.currentSrc);
-        if (!response.ok) throw new Error('Could not read the local video audio.');
-        const bytes = await response.arrayBuffer();
         context = new AudioContextClass();
-        const buffer = await context.decodeAudioData(bytes.slice(0));
-        const sampleRate = buffer.sampleRate;
-        const hop = Math.max(1, Math.floor(sampleRate * 0.25));
-        const rms = [];
-        for (let start = 0; start < buffer.length; start += hop) {
-          const end = Math.min(buffer.length, start + hop);
-          let sum = 0;
-          for (let ch = 0; ch < buffer.numberOfChannels; ch++) {
-            const data = buffer.getChannelData(ch);
-            for (let i = start; i < end; i++) sum += data[i] * data[i];
-          }
-          rms.push({ t: start / sampleRate, energy: Math.sqrt(sum / Math.max(1, (end - start) * buffer.numberOfChannels)) });
-        }
-        if (!rms.length) return [];
-        const sorted = rms.map(x => x.energy).sort((a,b) => a-b);
+        await context.resume();
+        source = context.createMediaElementSource(video);
+        analyser = context.createAnalyser();
+        analyser.fftSize = 1024;
+        gain = context.createGain();
+        gain.gain.value = 0;
+        source.connect(analyser);
+        analyser.connect(gain);
+        gain.connect(context.destination);
+        video.pause();
+        video.currentTime = 0;
+        await new Promise((resolve, reject) => {
+          const timer = setTimeout(() => reject(new Error('Audio scan could not seek to the start.')), 5000);
+          const done = () => { clearTimeout(timer); video.removeEventListener('seeked', done); resolve(); };
+          video.addEventListener('seeked', done, { once: true });
+          if (video.currentTime === 0 && video.readyState >= 2) done();
+        });
+        const data = new Uint8Array(analyser.fftSize);
+        let lastBucket = -1;
+        video.muted = false;
+        video.playbackRate = 4;
+        const finished = new Promise((resolve, reject) => {
+          const startedAt = Date.now();
+          const sample = () => {
+            if (video.currentTime >= video.duration - 0.05 || video.ended) { resolve(); return; }
+            analyser.getByteTimeDomainData(data);
+            let sum = 0;
+            for (let i = 0; i < data.length; i++) {
+              const value = (data[i] - 128) / 128;
+              sum += value * value;
+            }
+            const bucket = Math.floor(video.currentTime * 2);
+            if (bucket !== lastBucket) {
+              samples.push({ t: video.currentTime, energy: Math.sqrt(sum / data.length) });
+              lastBucket = bucket;
+            }
+            if (Date.now() - startedAt > Math.max(20000, video.duration * 1000 / 2 + 10000)) {
+              reject(new Error('Audio scan timed out. You can still use visual and transcript clues.'));
+              return;
+            }
+            frameId = requestAnimationFrame(sample);
+          };
+          video.addEventListener('ended', resolve, { once: true });
+          video.play().then(sample).catch(reject);
+        });
+        await finished;
+        cancelAnimationFrame(frameId);
+        video.pause();
+        if (samples.length < 2) return [];
+        const sorted = samples.map(x => x.energy).sort((a,b) => a-b);
         const baseline = sorted[Math.floor((sorted.length - 1) * 0.25)] || 0;
         const high = sorted[Math.floor((sorted.length - 1) * 0.90)] || 0;
         const spread = Math.max(0.00001, high - baseline);
-        const peaks = rms.map((x, i) => ({
-          center: x.t,
-          energy: x.energy,
-          score: Math.max(0, Math.min(100, 25 + (x.energy - baseline) / spread * 55)),
-          index: i
-        })).filter(x => x.center < video.duration);
-        peaks.sort((a,b) => b.score-a.score);
+        const peaks = samples.map(p => ({ ...p, score: Math.max(0, Math.min(100, Math.round(25 + (p.energy - baseline) / spread * 55))) })).sort((a,b)=>b.score-a.score);
         const chosen = [];
         for (const p of peaks) {
-          if (chosen.every(c => Math.abs(c.center - p.center) >= 4)) chosen.push(p);
+          if (chosen.every(c => Math.abs(c.center - p.t) >= 4)) chosen.push({ center:p.t, score:p.score });
           if (chosen.length >= 6) break;
         }
         return chosen.map((p,i) => {
           const w = this.safeWindow(p.center, video.duration, this.clipLength());
-          return { id:'audio-'+i, ...w, center:p.center, score:Math.round(p.score), reason:'Audio-energy peak — listen for a reaction, emphasis, or meaningful sound', excerpt:'Higher-than-baseline audio energy near '+this.time(p.center), source:'audio' };
+          return { id:'audio-'+i, ...w, center:p.center, score:p.score, reason:'Audio-energy peak — listen for a reaction, emphasis, or meaningful sound', excerpt:'Higher-than-baseline audio energy near '+this.time(p.center), source:'audio' };
         });
       } catch (err) {
-        if (err && /decode|buffer|format|encoding/i.test(err.message || '')) {
-          this.setStatus('Audio track could not be decoded in this browser. Visual and transcript clues can still be used.');
-          return [];
-        }
-        throw err;
+        this.setStatus((err.message || 'Audio scan failed.') + ' Visual and transcript clues can still be used.');
+        return [];
       } finally {
+        if (frameId) cancelAnimationFrame(frameId);
+        if (timerId) clearTimeout(timerId);
+        video.pause();
+        video.playbackRate = originalRate || 1;
+        video.muted = originalMuted;
+        try {
+          const target = Math.min(originalTime, Math.max(0, video.duration - 0.05));
+          video.currentTime = target;
+        } catch (e) {}
+        if (!wasPaused) video.play().catch(() => {});
         if (context) try { await context.close(); } catch (e) {}
       }
     },
