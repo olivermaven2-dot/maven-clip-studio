@@ -15,6 +15,7 @@ A mobile-friendly, GitHub Pages-first prototype for preparing short-form video c
 - See per-candidate evidence chips explaining whether a ranking uses visual changes, audio energy, transcript cues, or multiple aligned signals.
 - Send a candidate moment's suggested start/end times into the existing editor for manual preview and adjustment.
 - Choose a suggested clip duration (8, 15, 20, or 30 seconds) and preview each candidate in the loaded local video before sending it to the editor.
+- Select several candidate moments into a multi-clip queue; strongly overlapping selections are rejected to reduce duplicate exports. Load each selected moment into the editor in score order, with its own suggested title, description, and hashtags, then export each clip separately.
 
 ## Important limitations
 - A YouTube link is a preview source, not a downloadable source. The app cannot extract video from the embedded YouTube player. To edit and export, upload a video you own or are licensed/authorized to use.
