@@ -22,7 +22,7 @@
     scoreText(text, duration) {
       const lines = text.split(/\n+/).map(s => s.trim()).filter(Boolean);
       const hooks = /\b(wow|wait|what|why|how|secret|mistake|never|always|truth|best|worst|insane|unbelievable|finally|actually|because|shocking|incredible|tip|trick|fail|win|lost|found|reveals?|proof|learn|watch|look|imagine|important|problem|solution|versus|vs\.?|before|after|number one|top \d+)\b/i;
-      const timestamp = /(\\d{1,2}):(\\d{2})/;
+      const timestamp = /(\d{1,2}):(\d{2})/;
       const timed = [];
       for (const line of lines) {
         const match = line.match(timestamp);
