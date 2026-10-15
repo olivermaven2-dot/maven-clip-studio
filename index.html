@@ -133,11 +133,14 @@ $('exportClip').onclick=async()=>{
    const cleanup=()=>{clearTimeout(stopTimer);video.removeEventListener('timeupdate',progressHandler);video.removeEventListener('ended',stopHandler)};
    const finish=err=>{
     if(finished)return;finished=true;cleanup();video.pause();
-    try{if(recorder&&recorder.state!=='inactive')recorder.stop()}catch(e){}
-    if(err)reject(err);
-    else if(recorder&&recorder.state==='inactive')resolve();
-    else if(recorder)recorder.addEventListener('stop',()=>resolve(),{once:true});
-    else resolve();
+    if(err){
+     try{if(recorder&&recorder.state!=='inactive')recorder.stop()}catch(e){}
+     reject(err);return;
+    }
+    if(recorder&&recorder.state!=='inactive'){
+     recorder.addEventListener('stop',()=>resolve(),{once:true});
+     try{recorder.stop()}catch(e){reject(e)}
+    }else resolve();
    };
    progressHandler=()=>{
     const pct=Math.max(0,Math.min(100,Math.floor((video.currentTime-start)/(end-start)*100)));
