@@ -273,7 +273,7 @@
         const widthPct = Math.max(1, Math.min(100 - startPct, (item.end - item.start) / duration * 100));
         const segment = document.createElement('button');
         segment.type = 'button';
-        segment.className = 'radar-segment';
+        segment.className = 'radar-segment ' + ((item.signals || [item.source]).length > 1 ? 'combined' : (item.signals || [item.source])[0]);
         segment.style.left = startPct + '%';
         segment.style.width = widthPct + '%';
         segment.title = 'Candidate ' + (index + 1) + ': ' + this.time(item.start) + '–' + this.time(item.end) + '. ' + item.reason;
