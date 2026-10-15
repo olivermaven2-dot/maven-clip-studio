@@ -41,3 +41,8 @@ No build step is required.
 - **YouTube Viral Video Finder** searches public video metadata with the YouTube Data API v3. It ranks recent results by approximate views per hour and displays view counts, upload age, channel, and a link to the video. This is a rough discovery signal, not a guarantee of virality.
 - The finder requires a Google Cloud project with YouTube Data API v3 enabled and an API key. Restrict the key to the YouTube Data API and the intended website HTTP referrers. The key is held only in the current page memory and is not saved by the app; because this is a static GitHub Pages app, a browser key is still visible to the browser user and should be restricted.
 - The finder does not download YouTube videos. Only use source files you own or are authorized to edit. Publishing still requires a properly configured secure OAuth/backend integration.
+
+
+### Optional burned-in captions
+
+The clip editor supports an optional single caption overlay that is burned into every exported frame. Edit the caption text, choose small/medium/large sizing and top/middle/bottom placement, and preview the overlay on the local video before exporting. Leave the field blank for an uncaptioned export. This is a static caption for the whole selected segment, not automatically transcribed or time-synced subtitles. Captions are rendered locally into the WebM export; no caption text or video is uploaded by this feature.
