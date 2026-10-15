@@ -12,8 +12,11 @@
       seconds = Math.max(0, Math.floor(seconds || 0));
       return String(Math.floor(seconds / 60)).padStart(2, '0') + ':' + String(seconds % 60).padStart(2, '0');
     },
-    safeWindow(center, duration) {
-      const length = Math.min(20, Math.max(8, duration * 0.12));
+    clipLength() {
+      return Math.max(5, Number($('radarClipLength')?.value || 15));
+    },
+    safeWindow(center, duration, requestedLength) {
+      const length = Math.min(duration, Math.max(1, requestedLength || this.clipLength()));
       let start = Math.max(0, center - length * 0.35);
       let end = Math.min(duration, start + length);
       start = Math.max(0, end - length);
@@ -42,7 +45,7 @@
         });
       }
       return timed.sort((a,b) => b.score-a.score).slice(0, 8).map((item, i) => {
-        const w = this.safeWindow(item.center, duration);
+        const w = this.safeWindow(item.center, duration, this.clipLength());
         return { ...item, ...w, source: 'transcript', id: 'text-' + i };
       });
     },
@@ -97,7 +100,7 @@
         if (chosen.length >= 6) break;
       }
       return chosen.map((s, i) => {
-        const w = this.safeWindow(s.t, duration);
+        const w = this.safeWindow(s.t, duration, this.clipLength());
         return { id: 'frame-' + i, ...w, center: s.t, score: Math.min(92, Math.round(30 + s.score * 0.7)), reason: 'Visual scene-change candidate', excerpt: 'Noticeable frame change near ' + this.time(s.t), source: 'frames' };
       });
     },
@@ -116,6 +119,28 @@
         const meta = document.createElement('p'); meta.textContent = item.reason + ' · heuristic score ' + Math.round(item.score) + '/100';
         const excerpt = document.createElement('p'); excerpt.textContent = item.excerpt || 'Visual change detected. Preview this segment to judge its story and context.';
         const actions = document.createElement('div'); actions.className = 'buttonrow';
+        const preview = document.createElement('button'); preview.textContent = 'Preview moment';
+        preview.onclick = async () => {
+          const video = document.querySelector('#preview video');
+          if (!video || !Number.isFinite(video.duration)) { this.setStatus('Load the matching local video to preview this candidate.', 'error'); return; }
+          video.pause();
+          const start = Math.max(0, Math.min(item.start, video.duration - 0.1));
+          const end = Math.min(video.duration, item.end);
+          try {
+            await new Promise((resolve, reject) => {
+              let done = false;
+              const finish = () => { if (done) return; done = true; clearTimeout(timer); video.removeEventListener('seeked', finish); resolve(); };
+              const timer = setTimeout(() => { if (done) return; done = true; video.removeEventListener('seeked', finish); reject(new Error('Video seek timed out')); }, 5000);
+              video.addEventListener('seeked', finish, { once: true }); video.currentTime = start;
+              if (Math.abs(video.currentTime - start) < 0.03 && video.readyState >= 2) finish();
+            });
+            await video.play();
+            const stop = () => { if (video.currentTime >= end) { video.pause(); video.removeEventListener('timeupdate', stop); } };
+            video.addEventListener('timeupdate', stop);
+            document.querySelector('#preview').scrollIntoView({ behavior: 'smooth', block: 'center' });
+            this.setStatus('Previewing candidate from ' + this.time(start) + ' to ' + this.time(end) + '.', 'success');
+          } catch (e) { this.setStatus(e.message || 'Could not preview this candidate.', 'error'); }
+        };
         const use = document.createElement('button'); use.className = 'primary'; use.textContent = 'Use this moment';
         use.onclick = () => {
           $('startTime').value = item.start.toFixed(1);
@@ -125,7 +150,7 @@
           editor.scrollIntoView({ behavior: 'smooth', block: 'center' });
           this.setStatus('Candidate copied into the editor. Preview it and adjust the boundaries before exporting.', 'success');
         };
-        actions.append(use); card.append(title, meta, excerpt, actions); list.append(card);
+        actions.append(preview, use); card.append(title, meta, excerpt, actions); list.append(card);
       });
     }
   };
