@@ -59,7 +59,7 @@
       }
       if (!video.paused) video.pause();
       const duration = video.duration;
-      const sampleCount = Math.min(80, Math.max(12, Math.floor(duration / 2)));
+      const sampleCount = Math.min(120, Math.max(12, Math.floor(duration / 2)));
       const canvas = document.createElement('canvas');
       canvas.width = 48; canvas.height = 27;
       const ctx = canvas.getContext('2d', { willReadFrequently: true });
