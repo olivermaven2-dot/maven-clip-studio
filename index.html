@@ -19,7 +19,7 @@
 <section class="hero"><div class="eyebrow">YOUR SHORT-FORM WORKFLOW</div><h2>Long videos. <span style="color:#a99bff">Great moments.</span></h2><p>Import a video you own or have permission to use, trim a highlight, prepare the post, then review the clip before publishing.</p><div class="buttonrow" style="margin-top:14px"><button id="autoClipShortcut" class="primary" type="button">✦ AutoClip — find best moment</button><span class="small">Upload a video, scan it, then AutoClip picks the top candidate.</span></div></section>
 <div class="layout"><section class="stack">
 <div class="panel"><h3>01 / Add a source</h3><div class="tabs"><button id="tabUpload" class="active" type="button">Upload video</button><button id="tabYoutube" type="button">YouTube link</button></div>
-<div id="uploadPane"><div class="drop"><strong>Choose a video from your device</strong><span>MP4, WebM and other formats supported by your browser</span><input id="fileInput" type="file" accept="video/*"></div></div>
+<div id="uploadPane"><div class="drop"><strong>Choose a video from your device</strong><span>MP4, WebM and other formats supported by your browser</span><input id="fileInput" type="file" accept="video/*"></div><div class="divider"></div><div class="field"><strong>Or record your screen</strong><div class="small">Capture a browser tab, window, or screen, then load the recording directly into AutoClip. Choose tab audio in the browser prompt if you want sound.</div></div><div class="buttonrow"><button id="startScreenRecord" class="primary" type="button">⏺ Start screen recording</button><button id="stopScreenRecord" type="button" disabled>■ Stop &amp; use recording</button></div><div id="screenRecordStatus" class="notice hidden" role="status"></div><div class="small">Screen recording depends on browser support and your permission. Keep recordings short to avoid high memory use. Only record content you have permission to capture.</div></div>
 <div class="divider"></div>
 <div class="field"><label for="directVideoUrl">Video download link</label><input id="directVideoUrl" type="url" inputmode="url" placeholder="Paste a direct .mp4 or .webm link"></div>
 <div class="buttonrow"><button id="downloadDirectVideo" class="primary" type="button">Download video → AutoClip</button><button id="openDirectVideo" type="button">Open link</button></div>
@@ -157,6 +157,35 @@ $('dockExport').onclick=()=>{if(!$('dockExport').disabled)$('exportClip').click(
 const dockObserver=new MutationObserver(syncMobileActionDock);['previewClip','exportClip'].forEach(id=>dockObserver.observe($(id),{attributes:true,attributeFilter:['disabled']}));
 function enableEditor(on){['playBtn','markStart','markEnd','previewClip','exportClip'].forEach(id=>$(id).disabled=!on);syncMobileActionDock()}
 function setSource(file,url){currentFile=file; if(objectUrl) URL.revokeObjectURL(objectUrl);objectUrl=url||URL.createObjectURL(file);video.src=objectUrl;video.load();$('preview').replaceChildren(video,$('captionOverlay'));$('sourceName').textContent=file.name;$('clipTitle').value=file.name.replace(/\.[^.]+$/,'').slice(0,90);enableEditor(true);exportedBlob=null;updateCaptionPreview()}
+let screenCaptureStream=null,screenRecorder=null,screenChunks=[],screenStartedAt=0;
+function stopScreenCaptureTracks(){if(screenCaptureStream){screenCaptureStream.getTracks().forEach(track=>track.stop());screenCaptureStream=null}}
+$('startScreenRecord').onclick=async()=>{
+ const startBtn=$('startScreenRecord'),stopBtn=$('stopScreenRecord');
+ if(!navigator.mediaDevices||typeof navigator.mediaDevices.getDisplayMedia!=='function'){setNotice('screenRecordStatus','Screen recording is not supported in this browser or page context. Try the latest Chrome on HTTPS.','error');return}
+ if(!window.MediaRecorder){setNotice('screenRecordStatus','This browser cannot record the captured screen. Try the latest Chrome.','error');return}
+ try{
+  screenCaptureStream=await navigator.mediaDevices.getDisplayMedia({video:{frameRate:{ideal:30,max:30}},audio:true});
+  const mime=['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'].find(type=>{try{return MediaRecorder.isTypeSupported(type)}catch(e){return false}});
+  screenChunks=[];screenStartedAt=Date.now();screenRecorder=mime?new MediaRecorder(screenCaptureStream,{mimeType:mime}):new MediaRecorder(screenCaptureStream);
+  screenRecorder.ondataavailable=e=>{if(e.data&&e.data.size)screenChunks.push(e.data)};
+  screenRecorder.onerror=()=>setNotice('screenRecordStatus','The browser reported a screen-recording error. Try again or record a shorter segment.','error');
+  screenRecorder.onstop=()=>{
+   const type=screenRecorder&&screenRecorder.mimeType||'video/webm';
+   const blob=new Blob(screenChunks,{type});
+   stopScreenCaptureTracks();startBtn.disabled=false;stopBtn.disabled=true;
+   if(!blob.size){setNotice('screenRecordStatus','No recording data was captured. Try again and ensure the selected screen or tab is shared.','error');return}
+   const file=new File([blob],'maven-screen-recording-'+new Date().toISOString().replace(/[:.]/g,'-')+'.webm',{type:blob.type||'video/webm'});
+   setSource(file);$('tabUpload').click();$('fileInput').value='';
+   setNotice('screenRecordStatus','Recording loaded into the editor ('+(blob.size/1024/1024).toFixed(1)+' MB). Click AutoClip: Pick best moment to scan it and suggest a clip.','success');
+   $('preview').scrollIntoView({behavior:'smooth',block:'center'});
+  };
+  screenCaptureStream.getVideoTracks()[0]?.addEventListener('ended',()=>{if(screenRecorder&&screenRecorder.state==='recording')screenRecorder.stop()},{once:true});
+  screenRecorder.start(500);startBtn.disabled=true;stopBtn.disabled=false;
+  setNotice('screenRecordStatus','Recording screen… Click Stop & use recording when you have captured the moment. Audio is included only if the browser share prompt supplies it.','success');
+ }catch(err){stopScreenCaptureTracks();startBtn.disabled=false;stopBtn.disabled=true;setNotice('screenRecordStatus',err&&err.name==='NotAllowedError'?'Screen recording was cancelled or permission was denied. Choose a screen or tab and allow sharing to try again.':'Could not start screen recording: '+(err&&err.message?err.message:'browser error'),'error')}
+};
+$('stopScreenRecord').onclick=()=>{if(screenRecorder&&screenRecorder.state==='recording'){ $('stopScreenRecord').disabled=true;setNotice('screenRecordStatus','Finishing recording and loading it into the editor…');screenRecorder.stop()}};
+
 $('tabUpload').onclick=()=>{$('tabUpload').classList.add('active');$('tabYoutube').classList.remove('active');$('uploadPane').classList.remove('hidden');$('youtubePane').classList.add('hidden')};
 $('tabYoutube').onclick=()=>{$('tabYoutube').classList.add('active');$('tabUpload').classList.remove('active');$('youtubePane').classList.remove('hidden');$('uploadPane').classList.add('hidden')};
 $('fileInput').addEventListener('change',e=>{const f=e.target.files&&e.target.files[0];if(!f)return;if(!f.type.startsWith('video/')){setNotice('exportStatus','Please choose a video file.','error');$('exportStatus').classList.remove('hidden');return}setSource(f);clearNotice('exportStatus')});
