@@ -452,9 +452,10 @@
       updateMomentControls();
     }
   };
-  window.mavenRadar = radar;
-  $('scanVideo').addEventListener('click', async () => {
-    $('scanVideo').disabled = true;
+  radar.scanAndRender = async function() {
+    const button = $('scanVideo');
+    if (button.disabled) return false;
+    button.disabled = true;
     try {
       const items = await radar.scanFrames();
       const audioItems = await radar.scanAudioEnergy();
@@ -463,11 +464,16 @@
       radar.candidates = radar.combineCandidates(items.concat(audioItems, transcriptItems));
       radar.render(radar.candidates.slice(0,8));
       const signalCount = [items.length ? 'visual' : '', audioItems.length ? 'audio' : '', transcriptItems.length ? 'transcript' : ''].filter(Boolean);
-      radar.setStatus(radar.candidates.length ? 'Scan complete using ' + (signalCount.join(', ') || 'available') + ' clues. Combined scores are review priorities, not predictions of virality.' : 'No usable clues were found.', radar.candidates.length ? 'success' : 'error');
+      radar.setStatus(radar.candidates.length ? 'AutoClip found ' + radar.candidates.length + ' candidate moment(s). The highest-ranked moments are shown below; preview each one and review context before exporting.' : 'No usable clues were found. Try another local video or add timestamped notes.', radar.candidates.length ? 'success' : 'error');
+      $('radarCandidates').scrollIntoView({behavior:'smooth',block:'start'});
+      return radar.candidates.length > 0;
     } catch (err) {
       radar.setStatus(err.message || 'Frame scan failed. Try another local video.', 'error');
-    } finally { $('scanVideo').disabled = false; }
-  });
+      return false;
+    } finally { button.disabled = false; }
+  };
+  window.mavenRadar = radar;
+  $('scanVideo').addEventListener('click', () => radar.scanAndRender());
   $('analyzeTranscript').addEventListener('click', () => {
     const text = $('radarTranscript').value.trim();
     if (!text) { radar.setStatus('Paste a transcript or timestamped notes first.', 'error'); return; }
