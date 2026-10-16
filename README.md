@@ -10,7 +10,7 @@ A mobile-friendly, GitHub Pages-first prototype for preparing short-form video c
 - Export supported browser-recorded clips as WebM, with vertical 9:16 or original framing.
 - Choose **Auto (mobile-friendly)**, Compact (480p/24 fps), Standard (720p/24 fps), or High (1080p/30 fps) export quality. Auto chooses a lighter 480p export on narrow-screen or low-memory devices and 720p on larger devices.
 - Canvas drawing is throttled to the selected recording frame rate instead of repainting at the display's full refresh rate; export errors stop the drawing loop and recorder to reduce lingering CPU use.
-- Show live export progress, report clearer recording/seek/timeout/empty-file errors, and open the exported WebM in a separate tab for review before posting.
+- Show live export progress, check MediaRecorder/codec and canvas-capture support before starting, verify the canvas video track exists, report clearer recording/seek/timeout/empty-file errors, and open the exported WebM in a separate tab for review before posting. On narrow or low-memory devices, warn when a long or High-quality export may be demanding; older canvas implementations also get a simple caption-background fallback.
 - Prepare post title, description, hashtags, and category.
 - Keep a local review queue and copy post text.
 - **Viral Radar:** rank candidates by combining sampled visual scene changes, audio-energy peaks, and optional pasted transcript / timestamped-note hooks. Candidates supported by more than one signal receive a modest agreement bonus.
