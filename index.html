@@ -65,7 +65,7 @@
 <div class="radar-grid" style="margin-top:12px">
 <div class="field"><label for="ytRegion">Region</label><select id="ytRegion"><option value="KE" selected>Kenya</option><option value="US">United States</option><option value="GB">United Kingdom</option><option value="IN">India</option><option value="NG">Nigeria</option><option value="ZA">South Africa</option><option value="WORLD">Worldwide / not region-filtered</option></select></div>
 <div class="field"><label for="ytPeriod">Upload period</label><select id="ytPeriod"><option value="1">Past 24 hours</option><option value="7" selected>Past 7 days</option><option value="30">Past 30 days</option><option value="90">Past 90 days</option></select></div>
-<div class="field"><label for="ytVideoLength">Video length</label><select id="ytVideoLength"><option value="all" selected>All video lengths</option><option value="long">Long-form (over 3 minutes)</option><option value="short">Shorts-length (3 minutes or less)</option></select></div>
+<div class="field"><label for="ytVideoLength">Video length</label><select id="ytVideoLength"><option value="all" selected>All video lengths (including 1+ hour)</option><option value="long">Long-form (over 3 minutes)</option><option value="short">Shorts-length (3 minutes or less)</option><option value="hour">Extra long (1 hour or longer)</option></select></div>
 </div>
 <div class="radar-actions"><button id="findYoutubeVideos" class="primary" type="button">Find popular videos</button><button id="clearYoutubeResults" type="button">Clear results</button></div>
 <div id="ytDiscoveryStatus" class="notice hidden" role="status"></div>
@@ -435,9 +435,9 @@ $('findYoutubeVideos').onclick=async()=>{
   const statsData=await statsRes.json();
   if(!statsRes.ok)throw new Error(statsData.error?.message||'Could not load video statistics.');
   const now=Date.now();
-  const items=(statsData.items||[]).map(v=>{const views=Number(v.statistics?.viewCount)||0;const published=Date.parse(v.snippet?.publishedAt||'')||now;const ageHours=Math.max(1,(now-published)/3600000);const durationSeconds=youtubeDurationSeconds(v.contentDetails?.duration);return {...v,views,ageHours,velocity:views/ageHours,durationSeconds}}).filter(v=>lengthFilter==='all'||(lengthFilter==='long'?v.durationSeconds>180:v.durationSeconds<=180)).sort((a,b)=>b.velocity-a.velocity);
+  const items=(statsData.items||[]).map(v=>{const views=Number(v.statistics?.viewCount)||0;const published=Date.parse(v.snippet?.publishedAt||'')||now;const ageHours=Math.max(1,(now-published)/3600000);const durationSeconds=youtubeDurationSeconds(v.contentDetails?.duration);return {...v,views,ageHours,velocity:views/ageHours,durationSeconds}}).filter(v=>lengthFilter==='all'||(lengthFilter==='long'?v.durationSeconds>180:lengthFilter==='hour'?v.durationSeconds>=3600:v.durationSeconds<=180)).sort((a,b)=>b.velocity-a.velocity);
   const box=$('ytDiscoveryResults');box.className='';box.replaceChildren();
-  if(!items.length){box.className='queue-empty';box.textContent=lengthFilter==='long'?'No long-form videos matched this search and upload period. Try All video lengths or a longer upload period.':'No videos matched this length filter and upload period. Try All video lengths or a longer upload period.';setYtStatus('No results for the selected video length. Change the Video length filter and search again.','success');return}
+  if(!items.length){box.className='queue-empty';box.textContent=lengthFilter==='long'?'No long-form videos matched this search and upload period. Try All video lengths or a longer upload period.':lengthFilter==='hour'?'No videos of 1 hour or longer matched this search and upload period. Try All video lengths or a longer upload period.':'No videos matched this length filter and upload period. Try All video lengths or a longer upload period.';setYtStatus('No results for the selected video length. Change the Video length filter and search again.','success');return}
   items.forEach((v,i)=>{
    const card=document.createElement('div');card.className='clipitem';
    const title=document.createElement('h4');title.textContent=(i+1)+'. '+(v.snippet?.title||'Untitled video');
