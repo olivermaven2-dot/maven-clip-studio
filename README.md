@@ -6,6 +6,7 @@ A mobile-friendly, GitHub Pages-first prototype for preparing short-form video c
 - Upload and preview local video files.
 - Enter a YouTube URL to embed a YouTube preview.
 - Set clip start/end timestamps and preview the selected segment.
+- Choose target clip lengths of 8, 15, 20, 30, 45, 60, or 90 seconds, or enter a custom length (1–600 seconds); apply the target from the chosen start time and adjust boundaries manually.
 - Export supported browser-recorded clips as WebM, with vertical 9:16 or original framing.
 - Show live export progress, report clearer recording/seek/timeout/empty-file errors, and open the exported WebM in a separate tab for review before posting.
 - Prepare post title, description, hashtags, and category.
