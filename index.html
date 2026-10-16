@@ -27,7 +27,7 @@
 <div class="small">Works with direct video-file links when the host permits browser downloads. If blocked, download from the source website and import the file above.</div>
 <div id="youtubePane" class="hidden"><label for="youtubeUrl">YouTube video URL</label><div class="row"><input id="youtubeUrl" type="url" placeholder="https://www.youtube.com/watch?v=…"><button id="loadYoutube" class="primary" type="button">Preview</button></div><div class="notice">YouTube preview works with AutoClip: it can prepare a suggested segment and fill in clip details. For true frame/audio scanning and editable video export, load a source file you own or are authorized to edit.</div><div id="youtubePreview" class="hidden" style="margin-top:12px"></div></div>
 <div class="divider"></div><div class="preview" id="preview"><div class="placeholder"><b>▶</b><strong>Your video preview</strong><div class="muted">Choose a local video to begin editing</div></div><div id="captionOverlay" class="caption-overlay hidden" aria-hidden="true"></div></div><div class="preview-label"><span id="sourceName">No source loaded</span><span id="durationLabel">00:00 / 00:00</span></div>
-<div class="field" id="screenRecordControls"><strong>Screen record</strong><div class="small">Start only when you are ready. Your browser will ask you to choose a tab, window, or screen and grant sharing permission. Recording starts only after you allow it.</div></div><div class="buttonrow"><button id="startScreenRecord" class="primary" type="button">⏺ Start screen recording</button><button id="stopScreenRecord" type="button" disabled>■ Stop &amp; use recording</button></div><div id="screenRecordStatus" class="notice hidden" role="status"></div><div class="small">Only record content you are allowed to capture. Short recordings use less memory. Choose tab audio in the browser prompt if you want sound.</div>
+<div class="field" id="screenRecordControls"><strong>Screen record</strong><div class="small">Choose a tab, window, or screen in the browser prompt. To capture video sound, share a browser tab and enable its audio option when offered.</div><label class="remember-key"><input id="includeMicAudio" type="checkbox"> Include microphone audio too</label></div><div class="buttonrow"><button id="startScreenRecord" class="primary" type="button">⏺ Start screen recording</button><button id="stopScreenRecord" type="button" disabled>■ Stop &amp; use recording</button></div><div id="screenRecordStatus" class="notice hidden" role="status"></div><div class="small">Only record content you are allowed to capture. Short recordings use less memory. Choose tab audio in the browser prompt if you want sound.</div>
 <div class="row"><button id="playBtn" type="button" disabled>▶ Play</button><button id="markStart" type="button" disabled>Set start to current time</button><button id="markEnd" type="button" disabled>Set end to current time</button></div></div>
 <div class="panel"><h3>02 / Shape your clip</h3><p class="muted">Choose the exact moment. Export runs locally in your browser; longer clips may take a while.</p><div class="rangegrid"><div class="field"><label for="startTime">Start time (seconds)</label><input id="startTime" type="number" min="0" step=".1" value="0"></div><div class="field"><label for="endTime">End time (seconds)</label><input id="endTime" type="number" min="0" step=".1" value="15"></div></div>
 <div class="trim-timeline" aria-label="Clip trim timeline">
@@ -158,16 +158,33 @@ $('dockExport').onclick=()=>{if(!$('dockExport').disabled)$('exportClip').click(
 const dockObserver=new MutationObserver(syncMobileActionDock);['previewClip','exportClip'].forEach(id=>dockObserver.observe($(id),{attributes:true,attributeFilter:['disabled']}));
 function enableEditor(on){['playBtn','markStart','markEnd','previewClip','exportClip'].forEach(id=>$(id).disabled=!on);syncMobileActionDock()}
 function setSource(file,url){currentFile=file; if(objectUrl) URL.revokeObjectURL(objectUrl);objectUrl=url||URL.createObjectURL(file);video.src=objectUrl;video.load();$('preview').replaceChildren(video,$('captionOverlay'));$('sourceName').textContent=file.name;$('clipTitle').value=file.name.replace(/\.[^.]+$/,'').slice(0,90);enableEditor(true);exportedBlob=null;updateCaptionPreview()}
-let screenCaptureStream=null,screenRecorder=null,screenChunks=[],screenStartedAt=0;
-function stopScreenCaptureTracks(){if(screenCaptureStream){screenCaptureStream.getTracks().forEach(track=>track.stop());screenCaptureStream=null}}
+let screenCaptureStream=null,screenRecorder=null,screenChunks=[],screenStartedAt=0,screenMicStream=null,screenAudioContext=null;
+function stopScreenCaptureTracks(){if(screenCaptureStream){screenCaptureStream.getTracks().forEach(track=>track.stop());screenCaptureStream=null}if(screenMicStream){screenMicStream.getTracks().forEach(track=>track.stop());screenMicStream=null}if(screenAudioContext){screenAudioContext.close().catch(()=>{});screenAudioContext=null}}
 $('startScreenRecord').onclick=async()=>{
  const startBtn=$('startScreenRecord'),stopBtn=$('stopScreenRecord');
  if(!navigator.mediaDevices||typeof navigator.mediaDevices.getDisplayMedia!=='function'){setNotice('screenRecordStatus','Screen recording is not supported in this browser or page context. Try the latest Chrome on HTTPS.','error');return}
  if(!window.MediaRecorder){setNotice('screenRecordStatus','This browser cannot record the captured screen. Try the latest Chrome.','error');return}
  try{
   screenCaptureStream=await navigator.mediaDevices.getDisplayMedia({video:{frameRate:{ideal:30,max:30}},audio:true});
+  let recorderStream=screenCaptureStream;
+  const sharedAudioTracks=screenCaptureStream.getAudioTracks();
+  if($('includeMicAudio').checked){
+   if(!navigator.mediaDevices.getUserMedia)throw new Error('Microphone capture is not supported by this browser.');
+   screenMicStream=await navigator.mediaDevices.getUserMedia({audio:true});
+  }
+  const micTracks=screenMicStream?screenMicStream.getAudioTracks():[];
+  if(sharedAudioTracks.length&&micTracks.length&&window.AudioContext){
+   screenAudioContext=new AudioContext();
+   const mix=screenAudioContext.createMediaStreamDestination();
+   screenAudioContext.createMediaStreamSource(new MediaStream(sharedAudioTracks)).connect(mix);
+   screenAudioContext.createMediaStreamSource(new MediaStream(micTracks)).connect(mix);
+   recorderStream=new MediaStream([...screenCaptureStream.getVideoTracks(),...mix.stream.getAudioTracks()]);
+  }else if(micTracks.length){
+   recorderStream=new MediaStream([...screenCaptureStream.getVideoTracks(),...(sharedAudioTracks.length?sharedAudioTracks:[]),...micTracks]);
+  }
+  const hasAudio=recorderStream.getAudioTracks().length>0;
   const mime=['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'].find(type=>{try{return MediaRecorder.isTypeSupported(type)}catch(e){return false}});
-  screenChunks=[];screenStartedAt=Date.now();screenRecorder=mime?new MediaRecorder(screenCaptureStream,{mimeType:mime}):new MediaRecorder(screenCaptureStream);
+  screenChunks=[];screenStartedAt=Date.now();screenRecorder=mime?new MediaRecorder(recorderStream,{mimeType:mime}):new MediaRecorder(recorderStream);
   screenRecorder.ondataavailable=e=>{if(e.data&&e.data.size)screenChunks.push(e.data)};
   screenRecorder.onerror=()=>setNotice('screenRecordStatus','The browser reported a screen-recording error. Try again or record a shorter segment.','error');
   screenRecorder.onstop=()=>{
@@ -182,7 +199,7 @@ $('startScreenRecord').onclick=async()=>{
   };
   screenCaptureStream.getVideoTracks()[0]?.addEventListener('ended',()=>{if(screenRecorder&&screenRecorder.state==='recording')screenRecorder.stop()},{once:true});
   screenRecorder.start(500);startBtn.disabled=true;stopBtn.disabled=false;
-  setNotice('screenRecordStatus','Recording screen… Click Stop & use recording when you have captured the moment. Audio is included only if the browser share prompt supplies it.','success');
+  setNotice('screenRecordStatus',hasAudio?'Recording screen with audio… Click Stop & use recording when you have captured the moment.':'Recording screen without audio: choose a browser tab and enable Share tab audio, or tick Include microphone audio too before starting.','success');
  }catch(err){stopScreenCaptureTracks();startBtn.disabled=false;stopBtn.disabled=true;setNotice('screenRecordStatus',err&&err.name==='NotAllowedError'?'Screen recording was cancelled or permission was denied. Choose a screen or tab and allow sharing to try again.':'Could not start screen recording: '+(err&&err.message?err.message:'browser error'),'error')}
 };
 $('stopScreenRecord').onclick=()=>{if(screenRecorder&&screenRecorder.state==='recording'){ $('stopScreenRecord').disabled=true;setNotice('screenRecordStatus','Finishing recording and loading it into the editor…');screenRecorder.stop()}};
