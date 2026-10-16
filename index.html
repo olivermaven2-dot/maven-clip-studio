@@ -19,7 +19,12 @@
 <div id="youtubePane" class="hidden"><label for="youtubeUrl">YouTube video URL</label><div class="row"><input id="youtubeUrl" type="url" placeholder="https://www.youtube.com/watch?v=…"><button id="loadYoutube" class="primary" type="button">Preview</button></div><div class="notice">YouTube links can be previewed here, but a webpage cannot directly extract or download video frames from the YouTube player. To export a clip, upload a source file you own or are authorized to edit.</div><div id="youtubePreview" class="hidden" style="margin-top:12px"></div></div>
 <div class="divider"></div><div class="preview" id="preview"><div class="placeholder"><b>▶</b><strong>Your video preview</strong><div class="muted">Choose a local video to begin editing</div></div><div id="captionOverlay" class="caption-overlay hidden" aria-hidden="true"></div></div><div class="preview-label"><span id="sourceName">No source loaded</span><span id="durationLabel">00:00 / 00:00</span></div>
 <div class="row"><button id="playBtn" type="button" disabled>▶ Play</button><button id="markStart" type="button" disabled>Set start to current time</button><button id="markEnd" type="button" disabled>Set end to current time</button></div></div>
-<div class="panel"><h3>02 / Shape your clip</h3><p class="muted">Choose the exact moment. Export runs locally in your browser; longer clips may take a while.</p><div class="rangegrid"><div class="field"><label for="startTime">Start time (seconds)</label><input id="startTime" type="number" min="0" step=".1" value="0"></div><div class="field"><label for="endTime">End time (seconds)</label><input id="endTime" type="number" min="0" step=".1" value="15"></div></div><div class="row"><div class="field"><label for="aspect">Clip format</label><select id="aspect"><option value="vertical">Vertical 9:16 (Shorts)</option><option value="original">Original aspect ratio</option></select></div><div class="field"><label for="clipTitle">Clip name</label><input id="clipTitle" maxlength="90" placeholder="My best moment"></div></div>
+<div class="panel"><h3>02 / Shape your clip</h3><p class="muted">Choose the exact moment. Export runs locally in your browser; longer clips may take a while.</p><div class="rangegrid"><div class="field"><label for="startTime">Start time (seconds)</label><input id="startTime" type="number" min="0" step=".1" value="0"></div><div class="field"><label for="endTime">End time (seconds)</label><input id="endTime" type="number" min="0" step=".1" value="15"></div></div>
+<div class="rangegrid" style="margin-top:12px">
+<div class="field"><label for="clipLengthPreset">Target clip length</label><select id="clipLengthPreset"><option value="8">8 seconds</option><option value="15" selected>15 seconds</option><option value="20">20 seconds</option><option value="30">30 seconds</option><option value="45">45 seconds</option><option value="60">60 seconds</option><option value="90">90 seconds</option><option value="custom">Custom length</option></select></div>
+<div class="field hidden" id="customLengthWrap"><label for="customClipLength">Custom length (seconds)</label><input id="customClipLength" type="number" min="1" max="600" step="1" value="15" inputmode="numeric"></div>
+</div>
+<div class="row"><button id="applyClipLength" type="button">Apply length from start</button><div class="small" id="clipLengthStatus" role="status">Selected duration: 15 seconds</div></div><div class="row"><div class="field"><label for="aspect">Clip format</label><select id="aspect"><option value="vertical">Vertical 9:16 (Shorts)</option><option value="original">Original aspect ratio</option></select></div><div class="field"><label for="clipTitle">Clip name</label><input id="clipTitle" maxlength="90" placeholder="My best moment"></div></div>
 <div class="field"><label for="captionText">Burned-in caption (optional)</label><textarea id="captionText" rows="2" maxlength="220" placeholder="Type a short caption to display on the video…"></textarea><p class="small">This single caption stays visible throughout the exported clip. For timed subtitles, leave it blank.</p></div>
 <div class="field"><label for="timedCaptions">Timed subtitles (optional)</label><textarea id="timedCaptions" rows="4" placeholder="0-2.5 | Wait for it…&#10;2.5-5 | Here comes the moment!"></textarea><p class="small">One subtitle per line: start seconds-end seconds | text. Example: 0-2.5 | Hello. Timed subtitles take priority over the single caption above. Gaps stay caption-free.</p><div class="buttonrow"><button id="clearTimedCaptions" type="button">Clear timed subtitles</button></div></div>
 <div class="row"><div class="field"><label for="captionSize">Caption size</label><select id="captionSize"><option value="small">Small</option><option value="medium" selected>Medium</option><option value="large">Large</option></select></div><div class="field"><label for="captionPosition">Caption position</label><select id="captionPosition"><option value="bottom" selected>Bottom safe area</option><option value="middle">Middle</option><option value="top">Top safe area</option></select></div></div><div class="buttonrow"><button id="previewClip" type="button" disabled>Preview selection</button><button id="exportClip" class="primary" type="button" disabled>Export clip</button></div><div id="exportStatus" class="notice hidden" role="status"></div><div class="buttonrow" style="margin-top:10px"><button id="reviewExport" type="button" disabled>Review exported clip</button></div><p class="small">Export support depends on your browser. This first version creates a WebM file where MediaRecorder is supported.</p></div>
@@ -128,6 +133,38 @@ video.addEventListener('timeupdate',()=>{$('durationLabel').textContent=fmt(vide
 $('playBtn').onclick=()=>{if(video.paused)video.play();else video.pause();$('playBtn').textContent=video.paused?'▶ Play':'Ⅱ Pause'};
 $('markStart').onclick=()=>{$('startTime').value=video.currentTime.toFixed(1);if(Number($('endTime').value)<=video.currentTime)$('endTime').value=Math.min(video.duration,video.currentTime+10).toFixed(1)};
 $('markEnd').onclick=()=>{$('endTime').value=video.currentTime.toFixed(1)};
+function requestedClipLength(){
+ const preset=$('clipLengthPreset').value;
+ const seconds=preset==='custom'?Number($('customClipLength').value):Number(preset);
+ return Number.isFinite(seconds)?seconds:0;
+}
+function updateClipLengthLabel(){
+ const seconds=requestedClipLength();
+ $('clipLengthStatus').textContent='Target duration: '+(seconds>0?seconds+' seconds':'enter a valid length');
+ $('customLengthWrap').classList.toggle('hidden',$('clipLengthPreset').value!=='custom');
+}
+$('clipLengthPreset').addEventListener('change',updateClipLengthLabel);
+$('customClipLength').addEventListener('input',updateClipLengthLabel);
+$('applyClipLength').onclick=()=>{
+ const start=Number($('startTime').value),seconds=requestedClipLength();
+ if(!currentFile||!Number.isFinite(video.duration)||video.duration<=0){setNotice('exportStatus','Upload a local video before applying a target length.','error');return}
+ if(!Number.isFinite(start)||start<0||start>=video.duration){setNotice('exportStatus','Choose a valid start time within the video.','error');return}
+ if(!Number.isFinite(seconds)||seconds<1||seconds>600){setNotice('exportStatus','Enter a custom clip length between 1 and 600 seconds.','error');return}
+ const end=Math.min(video.duration,start+seconds);
+ $('endTime').value=end.toFixed(1);
+ const actual=end-start;
+ $('clipLengthStatus').textContent='Selected duration: '+actual.toFixed(1)+' seconds'+(actual<seconds?' (video ends before target length)':'');
+ clearNotice('exportStatus');
+};
+$('startTime').addEventListener('change',()=>{
+ const start=Number($('startTime').value),seconds=requestedClipLength();
+ if(currentFile&&Number.isFinite(start)&&start>=0&&start<video.duration&&seconds>0){
+  const end=Math.min(video.duration,start+seconds);
+  $('endTime').value=end.toFixed(1);
+  $('clipLengthStatus').textContent='Selected duration: '+(end-start).toFixed(1)+' seconds'+(end-start<seconds?' (video ends before target length)':'');
+ }
+});
+updateClipLengthLabel();
 $('previewClip').onclick=()=>{const a=Number($('startTime').value),b=Number($('endTime').value);if(!validRange(a,b))return;video.currentTime=a;video.play();const stop=()=>{if(video.currentTime>=b){video.pause();video.removeEventListener('timeupdate',stop)}};video.addEventListener('timeupdate',stop)};
 function parseTimedCaptions(){return $('timedCaptions').value.split(/\n/).map((raw,index)=>{const m=raw.trim().match(/^(\d+(?:\.\d+)?)\s*[-–]\s*(\d+(?:\.\d+)?)\s*\|\s*(.+)$/);if(!m)return null;const start=Number(m[1]),end=Number(m[2]),text=m[3].trim();return end>start&&text?{start,end,text,index}:null}).filter(Boolean).sort((a,b)=>a.start-b.start||a.index-b.index)}
 function captionAtTime(time){const segments=parseTimedCaptions();if(segments.length){const active=segments.find(s=>time>=s.start&&time<s.end);return active?active.text:''}return $('captionText').value.trim()}
