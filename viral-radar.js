@@ -458,4 +458,5 @@
     radar.render(items);
     radar.setStatus('Transcript analysis complete. Scores rank language cues only; they are not measured view or engagement predictions.', 'success');
   });
+  window.mavenRadar = radar;
 })();
