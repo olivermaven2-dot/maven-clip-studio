@@ -394,8 +394,13 @@ function makeAutoMetadata(candidate){
 $('autoClipShortcut').onclick=async()=>{
  $('viralRadar').scrollIntoView({behavior:'smooth',block:'start'});
  const video=document.querySelector('#preview video');
+ // A Finder selection is a YouTube embed, not a local <video>. Route it through the YouTube-aware AutoClip path.
+ if(window.mavenSelectedYoutubeVideo&&window.mavenSelectedYoutubeVideo.id){
+   $('autoBuildClip').click();
+   return;
+ }
  if(!video||!Number.isFinite(video.duration)||video.duration<=0){
-   setNotice('radarStatus','Choose a video file first. AutoClip will scan it and display the best candidate clips here. A YouTube link alone cannot be scanned into editable clips.','error');return;
+   setNotice('radarStatus','Select a video in YouTube Viral Finder and click Use in AutoClip, or load a video in the preview.','error');return;
  }
  if(window.mavenRadar&&typeof window.mavenRadar.scanAndRender==='function'){
    const found=await window.mavenRadar.scanAndRender();
