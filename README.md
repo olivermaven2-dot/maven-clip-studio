@@ -54,3 +54,9 @@ The clip editor supports an optional single caption overlay that is burned into 
 - It asks the creator to supply the actual event description, original interpretation, and takeaway instead of fabricating detailed facts or generating a generic reaction from a clip alone. Drafts are assembled locally in the browser; no AI service or external API is used.
 - A checklist prompts review of context, meaningful original contribution, footage permission/licensing, and audio rights. The checklist is a reminder, not legal advice or a guarantee of YouTube/Facebook monetization eligibility.
 - Viral Radar transcript cues now remain a heuristic. Visual changes and audio-energy peaks can flag places to inspect, but they cannot reliably identify a funny expression, sports outcome, or useful lesson without context. Review the full source and confirm the moment yourself.
+
+### Platform-specific Viral Hashtag Studio
+
+- Generate separate hashtag suggestions for YouTube Shorts and Facebook Reels from a specific clip topic, names / niche keywords, content category, and optional Viral Radar moment type.
+- YouTube and Facebook outputs use different platform tags and a focused selection of topic/category/moment tags. The YouTube set can be copied into the existing post draft; both sets have individual copy buttons.
+- This is a local, rule-based helper, not a live trend feed or a promise of virality. It does not inspect the full video or measure hashtag performance. Keep only tags that accurately describe the clip and verify names and spelling before posting.
