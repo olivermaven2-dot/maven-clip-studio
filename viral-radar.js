@@ -112,9 +112,14 @@
       }
       if (!video.paused) video.pause();
       const duration = video.duration;
-      const sampleCount = Math.min(120, Math.max(12, Math.floor(duration / 2)));
+      // Scale scan cost to the device: repeated seeks are expensive on low-memory phones.
+      const memory = Number(navigator.deviceMemory) || 4;
+      const mobile = window.matchMedia && window.matchMedia('(max-width: 700px)').matches;
+      const sampleCap = memory <= 3 ? 28 : memory <= 4 || mobile ? 42 : 80;
+      const sampleCount = Math.min(sampleCap, Math.max(10, Math.floor(duration / (memory <= 3 || mobile ? 4 : 2))));
       const canvas = document.createElement('canvas');
-      canvas.width = 48; canvas.height = 27;
+      const sampleWidth = memory <= 3 ? 32 : mobile || memory <= 4 ? 40 : 48;
+      canvas.width = sampleWidth; canvas.height = Math.round(sampleWidth * 9 / 16);
       const ctx = canvas.getContext('2d', { willReadFrequently: true });
       const samples = [];
       const originalTime = video.currentTime;
@@ -196,7 +201,10 @@
         const data = new Uint8Array(analyser.fftSize);
         let lastBucket = -1;
         video.muted = false;
-        video.playbackRate = 4;
+        // Lower playback rate on phones to reduce decoding pressure during audio analysis.
+        const memory = Number(navigator.deviceMemory) || 4;
+        const mobile = window.matchMedia && window.matchMedia('(max-width: 700px)').matches;
+        video.playbackRate = memory <= 3 || mobile ? 2 : 4;
         const finished = new Promise((resolve, reject) => {
           const startedAt = Date.now();
           const sample = () => {
