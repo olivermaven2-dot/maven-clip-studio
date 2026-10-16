@@ -13,7 +13,7 @@
 </style></head>
 <body><main class="app">
 <header class="top"><div class="brand"><div class="logo">M</div><div><h1>MAVEN CLIP STUDIO</h1><p>Find the moment. Shape the story.</p></div></div><div class="status">● LOCAL WORKSPACE</div></header>
-<section class="hero"><div class="eyebrow">YOUR SHORT-FORM WORKFLOW</div><h2>Long videos. <span style="color:#a99bff">Great moments.</span></h2><p>Import a video you own or have permission to use, trim a highlight, prepare the post, then review the clip before publishing.</p></section>
+<section class="hero"><div class="eyebrow">YOUR SHORT-FORM WORKFLOW</div><h2>Long videos. <span style="color:#a99bff">Great moments.</span></h2><p>Import a video you own or have permission to use, trim a highlight, prepare the post, then review the clip before publishing.</p><div class="buttonrow" style="margin-top:14px"><button id="autoClipShortcut" class="primary" type="button">✦ AutoClip — find best moment</button><span class="small">Upload a video, scan it, then AutoClip picks the top candidate.</span></div></section>
 <div class="layout"><section class="stack">
 <div class="panel"><h3>01 / Add a source</h3><div class="tabs"><button id="tabUpload" class="active" type="button">Upload video</button><button id="tabYoutube" type="button">YouTube link</button></div>
 <div id="uploadPane"><div class="drop"><strong>Choose a video from your device</strong><span>MP4, WebM and other formats supported by your browser</span><input id="fileInput" type="file" accept="video/*"></div></div>
@@ -66,7 +66,7 @@
     <div class="field"><label for="radarTranscript">Transcript or timestamped notes (works with YouTube links too)</label><textarea id="radarTranscript" rows="5" placeholder="[00:14] Wait until you see what happens next!&#10;00:38 This is the biggest mistake beginners make.&#10;01:12 Here is how to fix it…"></textarea></div>
     <div class="field"><label>Discovery tips</label><div class="caption-preview">For timestamped notes, start each line with a time like [00:14] or 01:12. Paste only text you have permission to use. For an uploaded video, scan frames as an extra clue. YouTube player video itself is not extracted or downloaded.</div><div class="small" style="margin-top:8px">Candidates remain local in this tab. Check context, rights, audio, and the full clip before using it.</div></div>
   </div>
-  <div class="radar-grid" style="margin-top:12px"><div class="field"><label for="radarClipLength">Suggested clip length</label><select id="radarClipLength"><option value="8">8 seconds</option><option value="15" selected>15 seconds</option><option value="20">20 seconds</option><option value="30">30 seconds</option></select></div><div class="field"><label>Preview candidates</label><div class="small">Play each moment in the uploaded video before choosing it.</div></div></div><div class="radar-actions"><button id="analyzeTranscript" type="button">Analyze transcript / notes</button><button id="scanVideo" type="button" class="primary">Scan video + audio</button><button id="autoBuildClip" type="button">Auto-pick clip + metadata</button></div>
+  <div class="radar-grid" style="margin-top:12px"><div class="field"><label for="radarClipLength">Suggested clip length</label><select id="radarClipLength"><option value="8">8 seconds</option><option value="15" selected>15 seconds</option><option value="20">20 seconds</option><option value="30">30 seconds</option></select></div><div class="field"><label>Preview candidates</label><div class="small">Play each moment in the uploaded video before choosing it.</div></div></div><div class="radar-actions"><button id="analyzeTranscript" type="button">Analyze transcript / notes</button><button id="scanVideo" type="button" class="primary">Scan video + audio</button><button id="autoBuildClip" class="primary" type="button">✦ AutoClip: Pick best moment</button></div>
   <div id="radarStatus" class="notice hidden" role="status"></div>
   <div class="divider"></div><h3 style="margin-bottom:8px">Candidate moments</h3>
   <div class="radar-actions" style="margin:8px 0"><button id="loadNextMoment" type="button">Load next selected clip (0)</button><button id="clearMomentSelection" type="button">Clear selection</button></div><div id="multiClipStatus" class="notice hidden" role="status"></div>
@@ -362,6 +362,7 @@ function makeAutoMetadata(candidate){
  $('postDescription').value='A selected '+category.toLowerCase()+' moment from '+$('clipTitle').value+'. Review the full context and add your own commentary or attribution before publishing.';
  $('hashtags').value=tags.join(' ');
 }
+$('autoClipShortcut').onclick=()=>{$('viralRadar').scrollIntoView({behavior:'smooth',block:'start'});setNotice('radarStatus','AutoClip is here: scan the uploaded video or analyze timestamped notes, then tap “AutoClip: Pick best moment”.','success')};
 $('autoBuildClip').onclick=()=>{
  const video=document.querySelector('#preview video');
  const items=Array.isArray(window.mavenRadar?.candidates)?window.mavenRadar.candidates:[];
