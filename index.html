@@ -62,6 +62,25 @@
   <p class="radar-score-note">Score meaning: a relative heuristic ranking from visual changes, audio-energy peaks, and transcript cues. Agreement across signals can raise a candidate; this is not a percentage chance of going viral and is not based on actual views, watch time, or audience data.</p>
 </section>
 
+
+<section class="panel" id="hashtagStudio" style="margin-top:18px">
+  <h3>07 / Viral Hashtag Studio <span class="tag">YOUTUBE + FACEBOOK</span></h3>
+  <p class="radar-help">Generate separate, topic-specific hashtag sets for YouTube Shorts and Facebook Reels. Suggestions use your video topic, category, and current Viral Radar moment label; no hashtag can guarantee reach or virality.</p>
+  <div class="story-grid">
+    <div class="field"><label for="hashtagTopic">What is this specific clip about?</label><input id="hashtagTopic" maxlength="180" placeholder="e.g. last-minute winning goal, funny goalkeeper reaction"></div>
+    <div class="field"><label for="hashtagKeywords">Names, teams, game, place, or niche keywords (optional)</label><input id="hashtagKeywords" maxlength="180" placeholder="e.g. Arsenal, Premier League, Nairobi"></div>
+    <div class="field"><label for="hashtagCategory">Content category</label><select id="hashtagCategory"><option value="auto">Use post category</option><option>Football / Sports commentary</option><option>Podcast / Interview</option><option>Motivation</option><option>Gaming</option><option>Education</option><option>Comedy</option><option>Music</option><option>News / Commentary</option><option>General</option></select></div>
+    <div class="field"><label for="hashtagMoment">Moment type (optional)</label><select id="hashtagMoment"><option value="auto">Use selected Viral Radar moment</option><option value="hook">Strong hook</option><option value="sports">Sports drama / highlight</option><option value="funny">Funny reaction</option><option value="surprise">Surprising moment</option><option value="useful">Useful information</option><option value="analysis">Analysis / breakdown</option></select></div>
+  </div>
+  <div class="radar-actions"><button id="generateHashtags" class="primary" type="button">Generate hashtags</button><button id="useYtHashtags" type="button">Use YouTube set in post</button><button id="clearHashtags" type="button">Clear</button></div>
+  <div id="hashtagStatus" class="notice hidden" role="status"></div>
+  <div class="story-grid" style="margin-top:14px">
+    <div class="field"><label for="youtubeHashtagOutput">YouTube Shorts — focused set</label><textarea id="youtubeHashtagOutput" rows="4" readonly placeholder="Your YouTube hashtags will appear here."></textarea><div class="buttonrow" style="margin-top:8px"><button id="copyYoutubeHashtags" type="button">Copy YouTube hashtags</button></div></div>
+    <div class="field"><label for="facebookHashtagOutput">Facebook Reels — focused set</label><textarea id="facebookHashtagOutput" rows="4" readonly placeholder="Your Facebook hashtags will appear here."></textarea><div class="buttonrow" style="margin-top:8px"><button id="copyFacebookHashtags" type="button">Copy Facebook hashtags</button></div></div>
+  </div>
+  <p class="small">Best results come from accurate, specific tags that match the clip. This local rule-based generator does not query live trends, inspect the full video, or guarantee discovery. Check names, spelling, and relevance before posting.</p>
+</section>
+
 <section class="panel" id="originalStory" style="margin-top:18px">
   <h3>06 / Original Story Builder <span class="tag">MAKE IT YOURS</span></h3>
   <p class="radar-help">Turn a selected moment into a commentary-led Short or Reel. Use your own explanation and viewpoint; a new caption, crop, or generic reaction alone may not be enough to make reused footage meaningfully original.</p>
@@ -88,6 +107,7 @@
 <div class="footer">Maven Clip Studio · Browser-first prototype · No video is uploaded by this page</div></main>
 <script src="viral-radar.js"></script>
 <script src="original-story.js"></script>
+<script src="viral-hashtags.js"></script>
 <script>
 (() => {
 const $ = id => document.getElementById(id);
