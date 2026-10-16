@@ -14,6 +14,7 @@ A mobile-friendly, GitHub Pages-first prototype for preparing short-form video c
 - Prepare post title, description, hashtags, and category.
 - Keep a local review queue and copy post text.
 - **Viral Radar:** rank candidates by combining sampled visual scene changes, audio-energy peaks, and optional pasted transcript / timestamped-note hooks. Candidates supported by more than one signal receive a modest agreement bonus.
+- Viral Radar adapts frame-sampling density and thumbnail resolution to estimated device memory and screen size; audio scanning uses a lower playback rate on phones to reduce decoding pressure. This trades some fine-grained coverage for a lighter scan on low-memory devices.
 - View a candidate timeline with clip windows, signal-source labels, and visual cues showing where candidates sit in the video; open a candidate from its timeline lane.
 - See per-candidate evidence chips explaining whether a ranking uses visual changes, audio energy, transcript cues, or multiple aligned signals.
 - Send a candidate moment's suggested start/end times into the existing editor for manual preview and adjustment.
