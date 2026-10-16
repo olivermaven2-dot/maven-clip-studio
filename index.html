@@ -65,6 +65,7 @@
 <div class="radar-grid" style="margin-top:12px">
 <div class="field"><label for="ytRegion">Region</label><select id="ytRegion"><option value="KE" selected>Kenya</option><option value="US">United States</option><option value="GB">United Kingdom</option><option value="IN">India</option><option value="NG">Nigeria</option><option value="ZA">South Africa</option><option value="WORLD">Worldwide / not region-filtered</option></select></div>
 <div class="field"><label for="ytPeriod">Upload period</label><select id="ytPeriod"><option value="1">Past 24 hours</option><option value="7" selected>Past 7 days</option><option value="30">Past 30 days</option><option value="90">Past 90 days</option></select></div>
+<div class="field"><label for="ytVideoLength">Video length</label><select id="ytVideoLength"><option value="all" selected>All video lengths</option><option value="long">Long-form (over 3 minutes)</option><option value="short">Shorts-length (3 minutes or less)</option></select></div>
 </div>
 <div class="radar-actions"><button id="findYoutubeVideos" class="primary" type="button">Find popular videos</button><button id="clearYoutubeResults" type="button">Clear results</button></div>
 <div id="ytDiscoveryStatus" class="notice hidden" role="status"></div>
@@ -411,9 +412,11 @@ $('autoBuildClip').onclick=()=>{
 };
 function setYtStatus(message,kind=''){const el=$('ytDiscoveryStatus');el.textContent=message;el.classList.remove('hidden','success','error');if(kind)el.classList.add(kind)}
 function compactViews(n){n=Number(n)||0;return n>=1e9?(n/1e9).toFixed(1)+'B':n>=1e6?(n/1e6).toFixed(1)+'M':n>=1e3?(n/1e3).toFixed(1)+'K':String(n)}
+function youtubeDurationSeconds(iso){const m=String(iso||'').match(/^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/);return m?(Number(m[1]||0)*3600+Number(m[2]||0)*60+Number(m[3]||0)):0}
+function formatVideoDuration(seconds){seconds=Math.max(0,Math.floor(seconds||0));return Math.floor(seconds/3600)+':'+String(Math.floor(seconds%3600/60)).padStart(2,'0')+':'+String(seconds%60).padStart(2,'0')}
 $('clearYoutubeResults').onclick=()=>{$('ytDiscoveryResults').className='queue-empty';$('ytDiscoveryResults').textContent='Search results cleared.';clearNotice('ytDiscoveryStatus')};
 $('findYoutubeVideos').onclick=async()=>{
- const key=$('ytApiKey').value.trim(),query=$('ytSearchQuery').value.trim(),region=$('ytRegion').value,days=Number($('ytPeriod').value),btn=$('findYoutubeVideos');
+ const key=$('ytApiKey').value.trim(),query=$('ytSearchQuery').value.trim(),region=$('ytRegion').value,days=Number($('ytPeriod').value),lengthFilter=$('ytVideoLength').value,btn=$('findYoutubeVideos');
  if($('rememberYtApiKey').checked)syncRememberedYtKey();
  if(!key){setYtStatus('Paste a YouTube Data API key. It is used only for this search and is not stored.','error');return}
  if(!query){setYtStatus('Enter a topic or keywords to search for.','error');return}
@@ -432,12 +435,13 @@ $('findYoutubeVideos').onclick=async()=>{
   const statsData=await statsRes.json();
   if(!statsRes.ok)throw new Error(statsData.error?.message||'Could not load video statistics.');
   const now=Date.now();
-  const items=(statsData.items||[]).map(v=>{const views=Number(v.statistics?.viewCount)||0;const published=Date.parse(v.snippet?.publishedAt||'')||now;const ageHours=Math.max(1,(now-published)/3600000);return {...v,views,ageHours,velocity:views/ageHours}}).sort((a,b)=>b.velocity-a.velocity);
+  const items=(statsData.items||[]).map(v=>{const views=Number(v.statistics?.viewCount)||0;const published=Date.parse(v.snippet?.publishedAt||'')||now;const ageHours=Math.max(1,(now-published)/3600000);const durationSeconds=youtubeDurationSeconds(v.contentDetails?.duration);return {...v,views,ageHours,velocity:views/ageHours,durationSeconds}}).filter(v=>lengthFilter==='all'||(lengthFilter==='long'?v.durationSeconds>180:v.durationSeconds<=180)).sort((a,b)=>b.velocity-a.velocity);
   const box=$('ytDiscoveryResults');box.className='';box.replaceChildren();
+  if(!items.length){box.className='queue-empty';box.textContent=lengthFilter==='long'?'No long-form videos matched this search and upload period. Try All video lengths or a longer upload period.':'No videos matched this length filter and upload period. Try All video lengths or a longer upload period.';setYtStatus('No results for the selected video length. Change the Video length filter and search again.','success');return}
   items.forEach((v,i)=>{
    const card=document.createElement('div');card.className='clipitem';
    const title=document.createElement('h4');title.textContent=(i+1)+'. '+(v.snippet?.title||'Untitled video');
-   const meta=document.createElement('p');meta.textContent=(v.snippet?.channelTitle||'Unknown channel')+' · '+compactViews(v.views)+' views · '+(v.ageHours<48?Math.round(v.ageHours)+' hours old':Math.round(v.ageHours/24)+' days old')+' · ~'+compactViews(v.velocity)+' views/hour';
+   const meta=document.createElement('p');meta.textContent=(v.snippet?.channelTitle||'Unknown channel')+' · '+formatVideoDuration(v.durationSeconds)+' · '+compactViews(v.views)+' views · '+(v.ageHours<48?Math.round(v.ageHours)+' hours old':Math.round(v.ageHours/24)+' days old')+' · ~'+compactViews(v.velocity)+' views/hour';
    const desc=document.createElement('p');desc.textContent=(v.snippet?.description||'No description available').slice(0,220);
    const link=document.createElement('a');link.href='https://www.youtube.com/watch?v='+encodeURIComponent(v.id);link.target='_blank';link.rel='noopener noreferrer';link.textContent='Watch on YouTube';
    const use=document.createElement('button');use.type='button';use.className='primary';use.textContent='Use in AutoClip';use.style.marginTop='10px';use.onclick=()=>{const url='https://www.youtube.com/watch?v='+encodeURIComponent(v.id);$('mrBeastUrl').value=url;$('clipTitle').value=(v.snippet?.title||'Viral video').slice(0,90);$('postTitle').value=(v.snippet?.title||'Viral video').slice(0,100);$('postDescription').value=(v.snippet?.description||'').slice(0,1000);loadMrBeastLink(url)};
