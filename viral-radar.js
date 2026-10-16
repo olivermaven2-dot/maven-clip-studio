@@ -9,6 +9,15 @@
     const shorter=Math.max(0.1,Math.min(Number(a.end)-Number(a.start),Number(b.end)-Number(b.start)));
     return overlap/shorter;
   };
+  const classifyMoment = text => {
+    const t=String(text||'');
+    if(/\b(goal|penalty|red card|last minute|match point|overtime|knockout|save|tackle|free kick|offside|championship|derby|final whistle|counterattack|shot|scoreboard)\b/i.test(t)) return 'Sports drama';
+    if(/\b(laugh|laughing|hilarious|funny|joke|comedy|prank|awkward|embarrass|reaction|roast|meme|fails?)\b/i.test(t)) return 'Funny reaction';
+    if(/\b(shocking|surprise|unexpected|plot twist|suddenly|didn.t expect|unbelievable|wait for it|revealed|secret|turns out)\b/i.test(t)) return 'Surprising moment';
+    if(/\b(how to|tutorial|tip|trick|learn|explains?|lesson|mistake|step by step|here.s why|because|solution|fix|important)\b/i.test(t)) return 'Useful information';
+    if(/\b(wow|wait|what|why|how|watch this|look at|imagine|finally|actually|before|after|versus|vs\.?|best|worst|insane)\b/i.test(t)) return 'Strong hook';
+    return 'Moment to review';
+  };
   const updateMomentControls = () => {
     const load=$('loadNextMoment');
     if(load) load.textContent='Load next selected clip ('+selectedMoments.size+')';
@@ -78,14 +87,16 @@
         if (seconds >= duration || !Number.isFinite(seconds)) continue;
         const body = line.replace(timestamp, '').replace(/^[-:–—\s]+/, '').trim();
         const words = body.split(/\s+/).filter(Boolean).length;
-        const score = 35 + (hooks.test(body) ? 28 : 0) + Math.min(20, words * 1.2) + (/[!?]{1,}/.test(body) ? 8 : 0);
-        timed.push({ center: seconds, score: Math.min(95, score), reason: hooks.test(body) ? 'Strong hook or reaction language' : 'Timestamped transcript moment', excerpt: body || line });
+        const momentType = classifyMoment(body);
+        const score = 35 + (hooks.test(body) ? 24 : 0) + (momentType !== 'Moment to review' ? 8 : 0) + Math.min(20, words * 1.2) + (/[!?]{1,}/.test(body) ? 8 : 0);
+        timed.push({ center: seconds, score: Math.min(95, score), momentType, reason: momentType + (hooks.test(body) ? ' · strong hook language' : ' · transcript cue'), excerpt: body || line });
       }
       if (!timed.length) {
         const chunks = text.split(/(?<=[.!?])\s+|\n+/).map(s => s.trim()).filter(s => s.length > 18);
         chunks.forEach((body, i) => {
-          const score = 30 + (hooks.test(body) ? 32 : 0) + Math.min(18, body.split(/\s+/).length) + (/[!?]/.test(body) ? 8 : 0);
-          timed.push({ center: duration > 0 ? (i + 0.5) / chunks.length * duration : i * 10, score: Math.min(88, score), reason: hooks.test(body) ? 'Hook words found in transcript' : 'Transcript passage to review', excerpt: body });
+          const momentType = classifyMoment(body);
+          const score = 30 + (hooks.test(body) ? 28 : 0) + (momentType !== 'Moment to review' ? 8 : 0) + Math.min(18, body.split(/\s+/).length) + (/[!?]/.test(body) ? 8 : 0);
+          timed.push({ center: duration > 0 ? (i + 0.5) / chunks.length * duration : i * 10, score: Math.min(88, score), momentType, reason: momentType + (hooks.test(body) ? ' · hook words found' : ' · transcript passage'), excerpt: body });
         });
       }
       return timed.sort((a,b) => b.score-a.score).slice(0, 8).map((item, i) => {
