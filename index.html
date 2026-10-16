@@ -460,7 +460,18 @@ $('findYoutubeVideos').onclick=async()=>{
    const meta=document.createElement('p');meta.textContent=(v.snippet?.channelTitle||'Unknown channel')+' · '+formatVideoDuration(v.durationSeconds)+' · '+compactViews(v.views)+' views · '+(v.ageHours<48?Math.round(v.ageHours)+' hours old':Math.round(v.ageHours/24)+' days old')+' · ~'+compactViews(v.velocity)+' views/hour';
    const desc=document.createElement('p');desc.textContent=(v.snippet?.description||'No description available').slice(0,220);
    const link=document.createElement('a');link.href='https://www.youtube.com/watch?v='+encodeURIComponent(v.id);link.target='_blank';link.rel='noopener noreferrer';link.textContent='Watch on YouTube';
-   const use=document.createElement('button');use.type='button';use.className='primary';use.textContent='Use in AutoClip';use.style.marginTop='10px';use.onclick=()=>{const url='https://www.youtube.com/watch?v='+encodeURIComponent(v.id);$('mrBeastUrl').value=url;$('clipTitle').value=(v.snippet?.title||'Viral video').slice(0,90);$('postTitle').value=(v.snippet?.title||'Viral video').slice(0,100);$('postDescription').value=(v.snippet?.description||'').slice(0,1000);loadMrBeastLink(url)};
+   const use=document.createElement('button');use.type='button';use.className='primary';use.textContent='Use in AutoClip';use.style.marginTop='10px';use.onclick=()=>{
+    const url='https://www.youtube.com/watch?v='+encodeURIComponent(v.id);
+    $('mrBeastUrl').value=url;$('youtubeUrl').value=url;
+    $('clipTitle').value=(v.snippet?.title||'Viral video').slice(0,90);
+    $('postTitle').value=(v.snippet?.title||'Viral video').slice(0,100);
+    $('postDescription').value=(v.snippet?.description||'').slice(0,1000);
+    $('tabYoutube').click();
+    $('loadYoutube').click();
+    const preview=$('youtubePreview');
+    preview.scrollIntoView({behavior:'smooth',block:'center'});
+    setYtStatus('Video preview opened. You can watch it here. To create an editable/exportable clip, import a video file you own or are authorized to edit.','success');
+  };
    card.append(title,meta,desc,link,use);box.append(card);
   });
   setYtStatus('Found '+items.length+' public videos. Ranked by approximate views per hour; view velocity is only a rough signal and does not measure retention, likes or audience fit.','success');
