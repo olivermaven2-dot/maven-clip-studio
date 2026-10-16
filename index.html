@@ -179,7 +179,7 @@ $('exportClip').onclick=async()=>{
  if(!mime){setNotice('exportStatus','This browser does not support WebM recording. Try an up-to-date Chrome browser.','error');return}
  const btn=$('exportClip'),reviewBtn=$('reviewExport');
  btn.disabled=true;reviewBtn.disabled=true;
- let recorder=null,stream=null,raf=0,stopTimer=0,progressHandler=null,stopHandler=null,oldTime=video.currentTime,wasPlaying=!video.paused;
+ let recorder=null,stream=null,raf=0,stopTimer=0,progressHandler=null,stopHandler=null,oldTime=video.currentTime,wasPlaying=!video.paused,drawing=false;
  const stopTracks=()=>{if(stream)stream.getTracks().forEach(t=>{try{t.stop()}catch(e){}})};
  try{
   setNotice('exportStatus','Preparing export… 0%. Keep this tab open until the download starts.');
@@ -208,7 +208,7 @@ $('exportClip').onclick=async()=>{
   recorder=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond,audioBitsPerSecond:128000});
   recorder.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data)};
   recorder.onerror=()=>{setNotice('exportStatus','The browser reported a recording error. Try a shorter clip or another browser.','error')};
-  let drawing=true,lastDrawTime=0;
+  drawing=true;let lastDrawTime=0;
   const draw=(timestamp=0)=>{
    if(!drawing)return;
    if(timestamp-lastDrawTime>=1000/fps){lastDrawTime=timestamp;
@@ -282,7 +282,9 @@ $('exportClip').onclick=async()=>{
   reviewBtn.disabled=false;
   setNotice('exportStatus','Export complete ('+(blob.size/1024/1024).toFixed(2)+' MB, '+w+'×'+h+', '+fps+' fps). Download started. Review the actual file before saving your post draft.','success');
  }catch(err){
-  if(raf)cancelAnimationFrame(raf);stopTracks();
+  drawing=false;if(raf)cancelAnimationFrame(raf);
+  try{if(recorder&&recorder.state!=='inactive')recorder.stop()}catch(e){}
+  stopTracks();
   setNotice('exportStatus','Could not export this clip: '+(err&&err.message?err.message:'browser recording error')+'. Try a shorter clip or an up-to-date Chrome browser.','error');
  }finally{
   btn.disabled=false;video.pause();
