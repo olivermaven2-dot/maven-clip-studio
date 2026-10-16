@@ -414,7 +414,8 @@ $('findYoutubeVideos').onclick=async()=>{
    const meta=document.createElement('p');meta.textContent=(v.snippet?.channelTitle||'Unknown channel')+' · '+compactViews(v.views)+' views · '+(v.ageHours<48?Math.round(v.ageHours)+' hours old':Math.round(v.ageHours/24)+' days old')+' · ~'+compactViews(v.velocity)+' views/hour';
    const desc=document.createElement('p');desc.textContent=(v.snippet?.description||'No description available').slice(0,220);
    const link=document.createElement('a');link.href='https://www.youtube.com/watch?v='+encodeURIComponent(v.id);link.target='_blank';link.rel='noopener noreferrer';link.textContent='Watch on YouTube';
-   card.append(title,meta,desc,link);box.append(card);
+   const use=document.createElement('button');use.type='button';use.className='primary';use.textContent='Use in AutoClip';use.style.marginTop='10px';use.onclick=()=>{const url='https://www.youtube.com/watch?v='+encodeURIComponent(v.id);$('youtubeUrl').value=url;$('clipTitle').value=(v.snippet?.title||'Viral video').slice(0,90);$('postTitle').value=(v.snippet?.title||'Viral video').slice(0,100);$('postDescription').value=(v.snippet?.description||'').slice(0,1000);$('tabYoutube').click();$('loadYoutube').click();$('uploadPane').scrollIntoView({behavior:'smooth',block:'start'});setYtStatus('Video selected. YouTube is ready as a reference; upload an authorized source file in Upload video to AutoClip, preview and export the footage.','success')};
+   card.append(title,meta,desc,link,use);box.append(card);
   });
   setYtStatus('Found '+items.length+' public videos. Ranked by approximate views per hour; view velocity is only a rough signal and does not measure retention, likes or audience fit.','success');
  }catch(err){$('ytDiscoveryResults').className='queue-empty';$('ytDiscoveryResults').textContent='Could not retrieve results.';setYtStatus(err.message||'Search failed. Check your connection and API key.','error')}
