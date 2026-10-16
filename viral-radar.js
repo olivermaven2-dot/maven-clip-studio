@@ -78,12 +78,13 @@
     scoreText(text, duration) {
       const lines = text.split(/\n+/).map(s => s.trim()).filter(Boolean);
       const hooks = /\b(wow|wait|what|why|how|secret|mistake|never|always|truth|best|worst|insane|unbelievable|finally|actually|because|shocking|incredible|tip|trick|fail|win|lost|found|reveals?|proof|learn|watch|look|imagine|important|problem|solution|versus|vs\.?|before|after|number one|top \d+)\b/i;
-      const timestamp = /(\d{1,2}):(\d{2})/;
+      // Accept MM:SS and HH:MM:SS timestamps, optionally in square brackets.
+      const timestamp = /(?:\[)?(\d{1,2}):(\d{2})(?::(\d{2}))?(?:\])?/
       const timed = [];
       for (const line of lines) {
         const match = line.match(timestamp);
         if (!match) continue;
-        const seconds = match[3] ? Number(match[3]) : Number(match[1]) * 60 + Number(match[2]);
+        const seconds = match[3] !== undefined ? Number(match[1]) * 3600 + Number(match[2]) * 60 + Number(match[3]) : Number(match[1]) * 60 + Number(match[2]);
         if (seconds >= duration || !Number.isFinite(seconds)) continue;
         const body = line.replace(timestamp, '').replace(/^[-:–—\s]+/, '').trim();
         const words = body.split(/\s+/).filter(Boolean).length;
@@ -140,28 +141,48 @@
           const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
           const pixels = [];
           for (let p = 0; p < data.length; p += 12) pixels.push((data[p] + data[p+1] + data[p+2]) / 3);
-          let diff = 0;
+          let diff = 0, brightness = 0, contrast = 0;
+          for (let p = 0; p < pixels.length; p++) brightness += pixels[p];
+          brightness /= Math.max(1, pixels.length);
+          for (let p = 0; p < pixels.length; p++) contrast += Math.abs(pixels[p] - brightness);
+          contrast /= Math.max(1, pixels.length);
           if (samples.length) {
             const prev = samples[samples.length - 1].pixels;
             for (let p = 0; p < pixels.length; p++) diff += Math.abs(pixels[p] - prev[p]);
             diff /= pixels.length;
           }
-          samples.push({ t, diff, pixels });
+          // Keep a small visual fingerprint for local activity scoring; no frames are uploaded.
+          samples.push({ t, diff, brightness, contrast, pixels });
           if (i % 8 === 0) this.setStatus('Scanning local video frames… ' + Math.round((i + 1) / sampleCount * 100) + '%');
         }
       } finally {
         try { await seekTo(originalTime); } catch (e) {}
       }
-      const ranked = samples.slice(1).map((s, i) => ({ ...s, score: s.diff + (samples[i].diff || 0) * 0.35 }))
+      const rankedRaw = samples.slice(1).map((s, i) => {
+        const previous = samples[i] || s;
+        const next = samples[i + 2] || s;
+        const nextDiff = Math.abs(Number(next.brightness || 0) - Number(s.brightness || 0)) +
+          Math.abs(Number(next.contrast || 0) - Number(s.contrast || 0)) * 0.35;
+        const luminanceShift = Math.abs(Number(s.brightness || 0) - Number(previous.brightness || 0));
+        // Combine motion/change with nearby visual context instead of letting one cut dominate.
+        const activity = Number(s.diff || 0) * 0.62 + Number(previous.diff || 0) * 0.18 + nextDiff * 0.12 + luminanceShift * 0.08;
+        return { ...s, activity };
+      });
+      const activityValues = rankedRaw.map(x => x.activity).sort((a,b) => a-b);
+      const q25 = activityValues[Math.floor((activityValues.length - 1) * 0.25)] || 0;
+      const q90 = activityValues[Math.floor((activityValues.length - 1) * 0.90)] || 1;
+      const spread = Math.max(0.001, q90 - q25);
+      const ranked = rankedRaw.map(x => ({ ...x, score: Math.max(25, Math.min(88, Math.round(32 + (x.activity - q25) / spread * 48))) }))
         .sort((a,b) => b.score-a.score);
       const chosen = [];
+      const separation = Math.max(8, Math.min(18, this.clipLength() * 0.65));
       for (const s of ranked) {
-        if (chosen.every(c => Math.abs(c.t - s.t) > 12)) chosen.push(s);
+        if (chosen.every(c => Math.abs(c.t - s.t) > separation)) chosen.push(s);
         if (chosen.length >= 6) break;
       }
       return chosen.map((s, i) => {
         const w = this.safeWindow(s.t, duration, this.clipLength());
-        return { id: 'frame-' + i, ...w, center: s.t, score: Math.min(92, Math.round(30 + s.score * 0.7)), reason: 'Visual scene-change candidate', excerpt: 'Noticeable frame change near ' + this.time(s.t), source: 'frames' };
+        return { id: 'frame-' + i, ...w, center: s.t, score: s.score, reason: 'Visual activity / scene-change candidate', excerpt: 'Visual activity detected near ' + this.time(s.t), source: 'frames' };
       });
     },
     async scanAudioEnergy() {
@@ -291,8 +312,9 @@
         const signals = item.signals || [item.source];
         const values = item.signalScores || [Number(item.score) || 0];
         const average = values.reduce((sum,value)=>sum+value,0) / values.length;
-        const bonus = Math.max(0, signals.length - 1) * 8;
-        const score = Math.min(98, Math.round(average + bonus));
+        // Agreement between independent sources helps, but these are not virality probabilities.
+        const bonus = signals.length > 1 ? 7 + (signals.length - 2) * 4 : 0;
+        const score = Math.min(96, Math.round(average * 0.88 + bonus));
         const labels = { frames:'visual change', audio:'audio energy', transcript:'transcript cue' };
         const evidence = signals.map(s => labels[s] || s).join(' + ');
         return { ...item, ...window, score, reason: signals.length > 1 ? 'Combined evidence: ' + evidence : item.reason, excerpt: item.excerpt || 'Review the full context and sound.', source: signals.length > 1 ? 'combined' : item.source };
