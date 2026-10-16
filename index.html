@@ -10,6 +10,9 @@
 .mobile-action-dock{display:none}@media(max-width:850px){body{padding-bottom:88px}.mobile-action-dock{position:fixed;z-index:50;left:0;right:0;bottom:0;display:flex;gap:10px;padding:10px max(12px,env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left));background:rgba(7,12,23,.96);border-top:1px solid #34415a;box-shadow:0 -8px 24px rgba(0,0,0,.28);backdrop-filter:blur(12px)}.mobile-action-dock button{flex:1;min-height:46px;padding:10px 8px;font-size:13px}.mobile-action-dock .dock-hint{position:absolute;left:14px;top:-23px;font-size:10px;color:#a9b6cc;background:#111a2a;border:1px solid #34415a;border-bottom:0;border-radius:8px 8px 0 0;padding:3px 8px}}
 
 .story-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.story-grid .field{margin:0 0 12px}.story-output{white-space:pre-wrap;overflow-wrap:anywhere;background:#080f1c;border:1px solid var(--line);border-radius:12px;padding:14px;min-height:110px;color:#e7edff}.story-checks{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}.story-check{border:1px solid var(--line);border-radius:10px;padding:9px;font-size:12px;color:#c2cce0}.story-check input{width:auto;margin-right:7px;accent-color:var(--cyan)}@media(max-width:520px){.story-grid,.story-checks{grid-template-columns:1fr}}
+
+/* Compact mode: keep the functional blocks, headings, fields and action buttons; hide explanatory copy. */
+.small:not(#clipLengthStatus),.muted,.radar-help,.radar-score-note,.caption-preview,.hero p,.brand p,.eyebrow,.drop span,.trim-timeline-foot span,.panel > p:not(.notice){display:none!important}
 </style></head>
 <body><main class="app">
 <header class="top"><div class="brand"><div class="logo">M</div><div><h1>MAVEN CLIP STUDIO</h1><p>Find the moment. Shape the story.</p></div></div><div class="status">● LOCAL WORKSPACE</div></header>
