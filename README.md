@@ -52,6 +52,13 @@ No build step is required.
 The clip editor supports an optional single caption overlay that is burned into every exported frame. Edit the caption text, choose small/medium/large sizing and top/middle/bottom placement, and preview the overlay on the local video before exporting. Leave the field blank for an uncaptioned export. This is a static caption for the whole selected segment, not automatically transcribed or time-synced subtitles. Captions are rendered locally into the WebM export; no caption text or video is uploaded by this feature.
 
 
+
+### Mobile quick-trim timeline
+
+- The clip editor includes lightweight **Start point** and **End point** sliders, alongside the existing numeric start/end fields and mark-from-playhead buttons.
+- Drag either slider to adjust the trim boundaries; the summary displays start, end, and selected duration. **Preview start** seeks to the selected start point.
+- The sliders adapt to the loaded video's duration and remain disabled until a local video is loaded. This is a small native range-control enhancement, not a frame-heavy thumbnail timeline, to keep the editor responsive on lower-memory phones.
+
 ### Original Story Builder
 
 - The **Original Story Builder** connects to the current Viral Radar candidate list and helps structure a commentary-led Short/Reel with a hook, factual context, the creator's own analysis, a viewer takeaway, and a closing line.
