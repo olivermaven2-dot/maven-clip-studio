@@ -46,3 +46,11 @@ No build step is required.
 ### Optional burned-in captions
 
 The clip editor supports an optional single caption overlay that is burned into every exported frame. Edit the caption text, choose small/medium/large sizing and top/middle/bottom placement, and preview the overlay on the local video before exporting. Leave the field blank for an uncaptioned export. This is a static caption for the whole selected segment, not automatically transcribed or time-synced subtitles. Captions are rendered locally into the WebM export; no caption text or video is uploaded by this feature.
+
+
+### Original Story Builder
+
+- The **Original Story Builder** connects to the current Viral Radar candidate list and helps structure a commentary-led Short/Reel with a hook, factual context, the creator's own analysis, a viewer takeaway, and a closing line.
+- It asks the creator to supply the actual event description, original interpretation, and takeaway instead of fabricating detailed facts or generating a generic reaction from a clip alone. Drafts are assembled locally in the browser; no AI service or external API is used.
+- A checklist prompts review of context, meaningful original contribution, footage permission/licensing, and audio rights. The checklist is a reminder, not legal advice or a guarantee of YouTube/Facebook monetization eligibility.
+- Viral Radar transcript cues now remain a heuristic. Visual changes and audio-energy peaks can flag places to inspect, but they cannot reliably identify a funny expression, sports outcome, or useful lesson without context. Review the full source and confirm the moment yourself.
