@@ -8,6 +8,8 @@ A mobile-friendly, GitHub Pages-first prototype for preparing short-form video c
 - Set clip start/end timestamps and preview the selected segment.
 - Choose target clip lengths of 8, 15, 20, 30, 45, 60, or 90 seconds, or enter a custom length (1–600 seconds); apply the target from the chosen start time and adjust boundaries manually.
 - Export supported browser-recorded clips as WebM, with vertical 9:16 or original framing.
+- Choose **Auto (mobile-friendly)**, Compact (480p/24 fps), Standard (720p/24 fps), or High (1080p/30 fps) export quality. Auto chooses a lighter 480p export on narrow-screen or low-memory devices and 720p on larger devices.
+- Canvas drawing is throttled to the selected recording frame rate instead of repainting at the display's full refresh rate; export errors stop the drawing loop and recorder to reduce lingering CPU use.
 - Show live export progress, report clearer recording/seek/timeout/empty-file errors, and open the exported WebM in a separate tab for review before posting.
 - Prepare post title, description, hashtags, and category.
 - Keep a local review queue and copy post text.
