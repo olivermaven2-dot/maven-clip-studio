@@ -403,28 +403,35 @@ $('autoClipShortcut').onclick=async()=>{
  }
 };
 $('autoBuildClip').onclick=async()=>{
+ const btn=$('autoBuildClip');
  const video=document.querySelector('#preview video');
- const items=Array.isArray(window.mavenRadar?.candidates)?window.mavenRadar.candidates:[];
- if(!video||!Number.isFinite(video.duration)||video.duration<=0){setNotice('radarStatus','Upload a local video first so the clip boundaries can be checked.','error');return}
- if(!items.length){
-   if(window.mavenRadar&&typeof window.mavenRadar.scanAndRender==='function'){
-     const found=await window.mavenRadar.scanAndRender();
-     if(found){$('autoBuildClip').click();return}
-   }
-   setNotice('radarStatus','Choose a local video and wait for its preview to load. AutoClip needs a source file before it can find candidate clips.','error');return
- }
- const candidate=[...items].sort((a,b)=>(Number(b.score)||0)-(Number(a.score)||0))[0];
- const start=Math.max(0,Math.min(Number(candidate.start)||0,Math.max(0,video.duration-0.1)));
- const end=Math.min(video.duration,Math.max(start+0.5,Number(candidate.end)||start+0.5));
- if(!Number.isFinite(start)||!Number.isFinite(end)||end<=start){setNotice('radarStatus','The top candidate has invalid clip boundaries. Re-run the scan or transcript analysis, then try again.','error');return}
- $('startTime').value=start.toFixed(1);$('endTime').value=end.toFixed(1);
- makeAutoMetadata(candidate);
- $('startTime').scrollIntoView({behavior:'smooth',block:'center'});
- const rawSignals=Array.isArray(candidate.signals)&&candidate.signals.length?candidate.signals:[candidate.source||'unknown'];
- const labels={frames:'visual scan',audio:'audio energy',transcript:'transcript / notes'};
- const evidence=[...new Set(rawSignals)].map(signal=>labels[signal]||signal).join(' + ');
- const evidenceText=evidence==='unknown'?'analysis evidence':evidence;
- setNotice('radarStatus','Auto-picked the highest-ranked candidate using '+evidenceText+'. Title, description and hashtags are rule-based suggestions. Preview the clip and review its context before exporting or posting.','success');
+ if(!video||!Number.isFinite(video.duration)||video.duration<=0){setNotice('radarStatus','Load a local video and wait until its preview and duration appear. A YouTube embedded preview cannot be scanned or turned into an editable clip.','error');return}
+ if(!window.mavenRadar||typeof window.mavenRadar.scanAndRender!=='function'){setNotice('radarStatus','AutoClip scanner is not ready. Refresh the page and try again.','error');return}
+ btn.disabled=true;
+ const oldLabel=btn.textContent;
+ btn.textContent='Scanning video…';
+ try{
+   // Always scan the currently loaded video so results from a previous source are never reused.
+   const found=await window.mavenRadar.scanAndRender();
+   const items=Array.isArray(window.mavenRadar.candidates)?window.mavenRadar.candidates:[];
+   if(!found||!items.length){setNotice('radarStatus','No strong candidate moment was found in this video. Try Scan video + audio, or add a transcript / timestamped notes, then try AutoClip again.','error');return}
+   const candidate=[...items].sort((a,b)=>(Number(b.score)||0)-(Number(a.score)||0))[0];
+   const duration=video.duration;
+   const start=Math.max(0,Math.min(Number(candidate.start)||0,Math.max(0,duration-0.1)));
+   const end=Math.min(duration,Math.max(start+0.5,Number(candidate.end)||start+0.5));
+   if(!Number.isFinite(start)||!Number.isFinite(end)||end<=start){setNotice('radarStatus','The best candidate has invalid clip boundaries. Scan again or add timestamped notes.','error');return}
+   $('startTime').value=start.toFixed(1);$('endTime').value=end.toFixed(1);
+   makeAutoMetadata(candidate);
+   // Move the source preview to the beginning of the chosen moment so the user can review it immediately.
+   try{video.currentTime=start}catch(_){}
+   if(typeof video.pause==='function')video.pause();
+   $('preview').scrollIntoView({behavior:'smooth',block:'center'});
+   const rawSignals=Array.isArray(candidate.signals)&&candidate.signals.length?candidate.signals:[candidate.source||'unknown'];
+   const labels={frames:'visual scan',audio:'audio energy',transcript:'transcript / notes'};
+   const evidence=[...new Set(rawSignals)].map(signal=>labels[signal]||signal).join(' + ');
+   setNotice('radarStatus','AutoClip scanned the current video, selected the highest-ranked moment ('+start.toFixed(1)+'s–'+end.toFixed(1)+'s) using '+(evidence||'available analysis')+'. The preview is positioned at the start of the clip and trim fields plus post metadata are filled in. Play to review before exporting.','success');
+ }catch(err){setNotice('radarStatus',err&&err.message?err.message:'AutoClip could not complete the scan. Try again.','error')}
+ finally{btn.disabled=false;btn.textContent=oldLabel}
 };
 function setYtStatus(message,kind=''){const el=$('ytDiscoveryStatus');el.textContent=message;el.classList.remove('hidden','success','error');if(kind)el.classList.add(kind)}
 function compactViews(n){n=Number(n)||0;return n>=1e9?(n/1e9).toFixed(1)+'B':n>=1e6?(n/1e6).toFixed(1)+'M':n>=1e3?(n/1e3).toFixed(1)+'K':String(n)}
