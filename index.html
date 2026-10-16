@@ -208,9 +208,10 @@ $('exportClip').onclick=async()=>{
   recorder=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond,audioBitsPerSecond:128000});
   recorder.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data)};
   recorder.onerror=()=>{setNotice('exportStatus','The browser reported a recording error. Try a shorter clip or another browser.','error')};
-  let drawing=true;
-  const draw=()=>{
+  let drawing=true,lastDrawTime=0;
+  const draw=(timestamp=0)=>{
    if(!drawing)return;
+   if(timestamp-lastDrawTime>=1000/fps){lastDrawTime=timestamp;
    if(video.readyState>=2&&video.videoWidth&&video.videoHeight){
     ctx.fillStyle='#000';ctx.fillRect(0,0,w,h);
     const scale=vertical?Math.max(w/sourceWidth,h/sourceHeight):Math.min(w/sourceWidth,h/sourceHeight);
@@ -229,6 +230,7 @@ $('exportClip').onclick=async()=>{
      ctx.fillStyle='rgba(0,0,0,.68)';ctx.beginPath();ctx.roundRect((w-maxLineWidth)/2-padX,centerY-totalH/2-padY,maxLineWidth+padX*2,totalH+padY*2,Math.max(4,fontSize*.18));ctx.fill();
      ctx.fillStyle='#fff';ctx.strokeStyle='rgba(0,0,0,.95)';ctx.lineWidth=Math.max(2,fontSize*.08);lines.forEach((line,i)=>{const y=centerY-totalH/2+lineHeight*(i+.5);ctx.strokeText(line,w/2,y,maxWidth);ctx.fillText(line,w/2,y,maxWidth)});
     }
+   }
    }
    raf=requestAnimationFrame(draw);
   };
