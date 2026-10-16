@@ -269,6 +269,7 @@
           if (!target.signals.includes(item.source)) target.signals.push(item.source);
           target.signalScores.push(Number(item.score) || 0);
           if (item.source === 'transcript' && item.excerpt) target.excerpt = item.excerpt;
+          if (item.source === 'transcript' && item.momentType) target.momentType = item.momentType;
           // Merge the evidence, not the time ranges: candidate windows should still
           // respect the user's selected clip length instead of growing when clues overlap.
           if (Number(item.score) > Number(target.score)) target.center = item.center;
@@ -385,7 +386,7 @@
         card.dataset.candidateIndex = String(index);
         const title = document.createElement('h4'); title.textContent = (index + 1) + '. ' + this.time(item.start) + '–' + this.time(item.end) + ' · Review candidate';
         card.append(title);
-        const meta = document.createElement('p'); meta.textContent = item.reason + ' · heuristic score ' + Math.round(item.score) + '/100';
+        const meta = document.createElement('p'); meta.textContent = (item.momentType ? item.momentType + ' · ' : '') + item.reason + ' · heuristic score ' + Math.round(item.score) + '/100';
         const evidence = document.createElement('div'); evidence.className = 'radar-evidence';
         const labels = { frames:'Visual change', audio:'Audio energy', transcript:'Transcript cue' };
         (item.signals || [item.source]).forEach(signal => {
