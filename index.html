@@ -43,7 +43,7 @@
 <div class="row"><button id="applyClipLength" type="button">Apply length from start</button><div class="small" id="clipLengthStatus" role="status">Selected duration: 15 seconds</div></div><div class="row"><div class="field"><label for="aspect">Clip format</label><select id="aspect"><option value="vertical">Vertical 9:16 (Shorts)</option><option value="original">Original aspect ratio</option></select></div><div class="field"><label for="exportQuality">Export quality</label><select id="exportQuality"><option value="auto" selected>Auto (mobile-friendly)</option><option value="compact">Compact · 480p / 24 fps</option><option value="standard">Standard · 720p / 24 fps</option><option value="high">High · 1080p / 30 fps</option></select></div></div><div class="field"><label for="clipTitle">Clip name</label><input id="clipTitle" maxlength="90" placeholder="My best moment"></div><p class="small">Auto uses a lighter export on phones and low-memory devices. Compact is best for older phones or when storage is low; keep this tab open during export.</p>
 <div class="field"><label for="captionText">Burned-in caption (optional)</label><textarea id="captionText" rows="2" maxlength="220" placeholder="Type a short caption to display on the video…"></textarea><p class="small">This single caption stays visible throughout the exported clip. For timed subtitles, leave it blank.</p></div>
 <div class="field"><label for="timedCaptions">Timed subtitles (optional)</label><textarea id="timedCaptions" rows="4" placeholder="0-2.5 | Wait for it…&#10;2.5-5 | Here comes the moment!"></textarea><p class="small">One subtitle per line: start seconds-end seconds | text. Example: 0-2.5 | Hello. Timed subtitles take priority over the single caption above. Gaps stay caption-free.</p><div class="buttonrow"><button id="clearTimedCaptions" type="button">Clear timed subtitles</button></div></div>
-<div class="row"><div class="field"><label for="captionSize">Caption size</label><select id="captionSize"><option value="small">Small</option><option value="medium" selected>Medium</option><option value="large">Large</option></select></div><div class="field"><label for="captionPosition">Caption position</label><select id="captionPosition"><option value="bottom" selected>Bottom safe area</option><option value="middle">Middle</option><option value="top">Top safe area</option></select></div></div><div class="buttonrow"><button id="previewClip" type="button" disabled>Preview selection</button><button id="exportClip" class="primary" type="button" disabled>Export clip</button></div><div id="exportStatus" class="notice hidden" role="status"></div><div class="buttonrow" style="margin-top:10px"><button id="reviewExport" type="button" disabled>Review exported clip</button></div><p class="small">Export support depends on your browser. This first version creates a WebM file where MediaRecorder is supported.</p></div>
+<div class="row"><div class="field"><label for="captionSize">Caption size</label><select id="captionSize"><option value="small">Small</option><option value="medium" selected>Medium</option><option value="large">Large</option></select></div><div class="field"><label for="captionPosition">Caption position</label><select id="captionPosition"><option value="bottom" selected>Bottom safe area</option><option value="middle">Middle</option><option value="top">Top safe area</option></select></div></div><div class="buttonrow"><button id="previewClip" type="button" disabled>Preview selection</button><button id="exportClip" class="primary" type="button" disabled>Export clip</button><button id="batchExportClips" type="button" disabled>Export selected clips</button></div><div id="exportStatus" class="notice hidden" role="status"></div><div class="buttonrow" style="margin-top:10px"><button id="reviewExport" type="button" disabled>Review exported clip</button></div><p class="small">Export support depends on your browser. This first version creates a WebM file where MediaRecorder is supported.</p></div>
 </section>
 <aside class="stack">
 <div class="panel"><h3>03 / Prepare the post</h3><div class="field"><label for="postTitle">YouTube title</label><input id="postTitle" maxlength="100" placeholder="Write a clear, engaging title"></div><div class="field"><label for="postDescription">Description</label><textarea id="postDescription" rows="4" placeholder="Add context, attribution or original commentary…"></textarea></div><div class="field"><label for="hashtags">Hashtags</label><input id="hashtags" placeholder="#shorts #highlights"></div><div class="field"><label for="category">Content type</label><select id="category"><option>General</option><option>Podcast / Interview</option><option>Football / Sports commentary</option><option>Motivation</option><option>Gaming</option><option>Education</option><option>Comedy</option><option>Music</option><option>News / Commentary</option></select></div><div class="buttonrow"><button id="useClipTitle" type="button">Use clip name as title</button><button id="saveDraft" class="primary" type="button">Save post draft</button></div><div id="draftStatus" class="notice hidden" role="status"></div></div>
@@ -427,6 +427,42 @@ $('exportClip').onclick=async()=>{
   btn.disabled=false;video.pause();
   if(Number.isFinite(oldTime)&&video.duration)video.currentTime=Math.min(oldTime,video.duration);
  }
+};
+$('batchExportClips').onclick=async()=>{
+ const queue=typeof window.mavenGetSelectedMoments==='function'?window.mavenGetSelectedMoments():[];
+ const activeVideo=document.querySelector('#preview video');
+ if(!queue.length){setNotice('exportStatus','Select candidate moments in Viral Radar first.','error');return}
+ if(!currentFile||!activeVideo||!Number.isFinite(activeVideo.duration)||activeVideo.duration<=0){setNotice('exportStatus','Upload the matching local video before batch exporting selected clips.','error');return}
+ if(!window.confirm('Export '+queue.length+' selected clips one by one? Keep this tab open. Your browser may ask permission to download multiple files.'))return;
+ const batchBtn=$('batchExportClips');batchBtn.disabled=true;
+ let completed=0,failed=0;
+ try{
+  for(let i=0;i<queue.length;i++){
+   const item=queue[i],start=Math.max(0,Math.min(Number(item.start)||0,Math.max(0,activeVideo.duration-0.1)));
+   const end=Math.min(activeVideo.duration,Math.max(start+0.5,Number(item.end)||start+0.5));
+   if(end<=start||end>activeVideo.duration){failed++;continue}
+   $('startTime').value=start.toFixed(1);$('endTime').value=end.toFixed(1);
+   makeAutoMetadata(item);
+   setNotice('exportStatus','Batch export: clip '+(i+1)+' of '+queue.length+'. Preparing…');
+   const status=$('exportStatus');
+   status.dataset.batchPending='1';
+   $('exportClip').click();
+   const outcome=await new Promise(resolve=>{
+    const began=Date.now();
+    const check=()=>{
+     const t=status.textContent||'';
+     if(t.startsWith('Export complete'))return resolve(true);
+     if(t.startsWith('Could not export')||t.startsWith('Video export is not supported')||t.startsWith('This browser cannot capture'))return resolve(false);
+     if(Date.now()-began>Math.max(90000,(end-start)*7000))return resolve(false);
+     setTimeout(check,500);
+    };
+    setTimeout(check,300);
+   });
+   if(outcome)completed++;else failed++;
+   if(i<queue.length-1)await new Promise(resolve=>setTimeout(resolve,900));
+  }
+  setNotice('exportStatus','Batch export finished: '+completed+' exported, '+failed+' failed out of '+queue.length+'. Check your Downloads folder; review each file and allow multiple downloads if prompted.',failed?'error':'success');
+ }finally{batchBtn.disabled=false;delete $('exportStatus').dataset.batchPending}
 };
 $('reviewExport').onclick=()=>{
  if(!exportedUrl){setNotice('exportStatus','Export a clip first, then review it here.','error');return}
