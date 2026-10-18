@@ -443,16 +443,52 @@ $('connectYoutube').onclick=()=>{setNotice('youtubeAuthStatus','Secure publishin
 function makeAutoMetadata(candidate){
  const category=$('category').value;
  const transcript=$('radarTranscript').value.trim();
- const lines=transcript.split(/\n+/).map(s=>s.replace(/^\s*(?:\[?\d{1,2}:\d{2}(?::\d{2})?\]?\s*)/,'').trim()).filter(Boolean);
- const text=(candidate&&candidate.excerpt&&candidate.excerpt!=='Review the full context and sound before using this moment.'?candidate.excerpt:lines[0])||'A moment worth watching';
- const clean=text.replace(/[#<>]/g,' ').replace(/\s+/g,' ').trim();
- const short=clean.split(/(?<=[.!?])\s+/)[0].slice(0,72).trim();
+ const start=Math.max(0,Number(candidate&&candidate.start)||Number($('startTime').value)||0);
+ const end=Math.max(start+0.5,Number(candidate&&candidate.end)||Number($('endTime').value)||start+15);
+ const transcriptLines=transcript.split(/\n+/).map(raw=>{
+  const m=raw.match(/^\s*(?:\[)?(\d{1,2}):(\d{2})(?::(\d{2}))?(?:\])?\s*[-:–—]?\s*(.*)$/);
+  if(!m)return {time:null,text:raw.trim()};
+  const time=m[3]!==undefined?Number(m[1])*3600+Number(m[2])*60+Number(m[3]):Number(m[1])*60+Number(m[2]);
+  return {time,text:(m[4]||'').trim()};
+ }).filter(x=>x.text);
+ const hasSpecificExcerpt=candidate&&candidate.excerpt&&candidate.excerpt!=='Review the full context and sound.';
+ const matching=transcriptLines.filter(x=>x.time!==null&&x.time>=start&&x.time<end);
+ const rawText=(hasSpecificExcerpt?candidate.excerpt:'')||matching.map(x=>x.text).join(' ')||transcriptLines.find(x=>x.text)?.text||'';
+ const clean=String(rawText).replace(/[#<>]/g,' ').replace(/\s+/g,' ').trim();
+ const sentence=(clean.split(/(?<=[.!?])\s+/)[0]||'').trim();
+ const momentType=String(candidate&&candidate.momentType||'');
+ const hookTitles={
+  'Sports drama':'The Moment That Changed Everything',
+  'Funny reaction':'The Reaction Says It All',
+  'Surprising moment':'Nobody Saw That Coming',
+  'Useful information':'This Is Worth Remembering',
+  'Strong hook':'Wait Until You Catch This',
+  'Moment to review':'A Moment Worth Rewatching'
+ };
+ // Prefer the actual spoken/note text as the title; use a restrained hook only when there is no specific wording.
+ let titleText=sentence||clean;
+ if(titleText.length>78)titleText=titleText.slice(0,75).replace(/\s+\S*$/,'').trim()+'…';
+ if(!titleText)titleText=hookTitles[momentType]||'A Moment Worth Rewatching';
+ else if(momentType==='Funny reaction'&&!/\b(funny|laugh|joke|reaction|prank|hilarious)\b/i.test(titleText))titleText='The Reaction: '+titleText;
+ else if(momentType==='Surprising moment'&&!/\b(shock|surpris|unexpected|unbeliev|wait|secret|reveal|twist)\b/i.test(titleText))titleText='The Unexpected: '+titleText;
+ const title=titleText.replace(/[\r\n]+/g,' ').trim();
+ $('clipTitle').value=title.slice(0,90);
+ $('postTitle').value=title.slice(0,95);
+ const captionSource=matching.length?matching.map(x=>x.text).join(' '):clean;
+ $('captionText').value=captionSource?captionSource.slice(0,220):'';
+ if(matching.length){
+  $('timedCaptions').value=matching.map((x,i)=>{
+   const relative=Math.max(0,x.time-start);
+   const next=matching[i+1];
+   const stop=Math.min(end-start,next?Math.max(relative+0.5,next.time-start):end-start);
+   const cap=x.text.length>115?x.text.slice(0,112).replace(/\s+\S*$/,'')+'…':x.text;
+   return relative.toFixed(1)+'-'+stop.toFixed(1)+' | '+cap;
+  }).join('\n');
+ }else $('timedCaptions').value='';
  const categoryTags={'Football / Sports commentary':['#football','#sports','#highlights'],'Gaming':['#gaming','#gameplay','#shorts'],'Podcast / Interview':['#podcast','#interview','#shorts'],'Motivation':['#motivation','#mindset','#shorts'],'Education':['#learning','#tips','#shorts'],'Comedy':['#comedy','#funny','#shorts'],'Music':['#music','#shorts'],'News / Commentary':['#commentary','#news','#shorts'],'General':['#shorts','#highlights','#mustwatch']};
  const tags=categoryTags[category]||categoryTags.General;
- const title=(short?short+' | ':'')+ (category==='General'?'Watch This Moment':category+' Moment');
- $('clipTitle').value=title.slice(0,90);
- $('postTitle').value=title.slice(0,100);
- $('postDescription').value='A selected '+category.toLowerCase()+' moment from '+$('clipTitle').value+'. Review the full context and add your own commentary or attribution before publishing.';
+ const excerpt=captionSource?captionSource.slice(0,360):'Review this selected '+(momentType||'highlight').toLowerCase()+' and confirm the exact context before publishing.';
+ $('postDescription').value=excerpt+'\n\nSelected from '+category.toLowerCase()+' footage at '+String(Math.floor(start/60)).padStart(2,'0')+':'+String(Math.floor(start%60)).padStart(2,'0')+'. Check context, names, attribution and rights before posting.';
  $('hashtags').value=tags.join(' ');
 }
 $('autoClipShortcut').onclick=async()=>{
