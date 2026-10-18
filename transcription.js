@@ -33,6 +33,12 @@ async function ensureFFmpeg() {
   ffmpeg.on('log', ({ message }) => {
     if (/error|invalid data|no audio/i.test(message)) console.warn('[Maven transcription]', message);
   });
+  ffmpeg.on('progress', ({ progress }) => {
+    if (busy && Number.isFinite(progress)) {
+      const percent = Math.max(0, Math.min(100, Math.round(progress * 100)));
+      showStatus('Extracting audio locally: ' + percent + '%. Keep Maven open while this device processes the video…');
+    }
+  });
   const base = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/umd';
   await ffmpeg.load({
     coreURL: await toBlobURL(base + '/ffmpeg-core.js', 'text/javascript'),
@@ -103,15 +109,21 @@ button?.addEventListener('click', async () => {
   button.textContent = 'Transcribing…';
   try {
     const converter = await ensureFFmpeg();
-    const model = await ensureTranscriber();
-    showStatus('Extracting audio locally. Long videos can take a while…');
+    showStatus('Preparing the video audio locally. The speech model loads after audio extraction to reduce peak memory use…');
     const inputName = safeName(file.name);
+    const segmentPrefix = 'maven-audio-';
+    const previous = await converter.listDir('/');
+    for (const entry of previous) {
+      if (/^maven-audio-\\d+\\.wav$/.test(entry.name)) await converter.deleteFile(entry.name).catch(() => {});
+    }
     const bytes = new Uint8Array(await file.arrayBuffer());
     await converter.writeFile(inputName, bytes);
-    await converter.exec(['-i', inputName, '-vn', '-ac', '1', '-ar', '16000', '-f', 'segment', '-segment_time', '30', '-c:a', 'pcm_s16le', '-reset_timestamps', '1', 'maven-audio-%03d.wav']);
+    await converter.exec(['-i', inputName, '-map', '0:a:0', '-vn', '-ac', '1', '-ar', '16000', '-c:a', 'pcm_s16le', '-f', 'segment', '-segment_time', '30', '-segment_format', 'wav', '-reset_timestamps', '1', segmentPrefix + '%03d.wav']);
+    await converter.deleteFile(inputName).catch(() => {});
     const entries = await converter.listDir('/');
     const segments = entries.map(x => x.name).filter(name => /^maven-audio-\d+\.wav$/.test(name)).sort();
     if (!segments.length) throw new Error('No audio track was found. Check that the video contains audible speech.');
+    const model = await ensureTranscriber();
     const allLines = [];
     let offset = 0;
     for (let i = 0; i < segments.length; i++) {
@@ -128,7 +140,7 @@ button?.addEventListener('click', async () => {
       }
       await converter.deleteFile(segments[i]).catch(() => {});
     }
-    await converter.deleteFile(inputName).catch(() => {});
+    for (const name of segments) await converter.deleteFile(name).catch(() => {});
     const textarea = $('radarTranscript');
     const unique = [...new Set(allLines)];
     if (!unique.length) throw new Error('The audio was processed, but no clear speech was recognized.');
@@ -137,6 +149,14 @@ button?.addEventListener('click', async () => {
     textarea.dispatchEvent(new Event('input', { bubbles: true }));
     showStatus('Transcription complete: added ' + unique.length + ' timestamped text segment(s). Review the transcript, then run AutoClip scan.', 'success');
   } catch (error) {
+    if (ffmpeg) {
+      const leftovers = await ffmpeg.listDir('/').catch(() => []);
+      for (const entry of leftovers) {
+        if (/^maven-audio-\\d+\\.wav$/.test(entry.name) || /^maven-input\\./.test(entry.name)) {
+          await ffmpeg.deleteFile(entry.name).catch(() => {});
+        }
+      }
+    }
     console.error('[Maven transcription]', error);
     showStatus((error && error.message ? error.message : 'Transcription failed.') + ' If this is a phone, try a shorter video and keep enough free storage and memory available.', 'error');
   } finally {
