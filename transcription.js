@@ -54,11 +54,23 @@ async function ensureTranscriber() {
 async function audioToFloat32(wavBytes) {
   const AudioCtx = window.AudioContext || window.webkitAudioContext;
   if (!AudioCtx) throw new Error('This browser does not support audio decoding.');
-  const context = new AudioCtx();
+  const context = new AudioCtx({ sampleRate: 16000 });
   try {
     const exactBuffer = wavBytes.buffer.slice(wavBytes.byteOffset, wavBytes.byteOffset + wavBytes.byteLength);
     const decoded = await context.decodeAudioData(exactBuffer);
-    return decoded.getChannelData(0).slice();
+    const channel = decoded.getChannelData(0);
+    if (decoded.sampleRate === 16000) return channel.slice();
+    const outputLength = Math.max(1, Math.round(channel.length * 16000 / decoded.sampleRate));
+    const output = new Float32Array(outputLength);
+    const ratio = decoded.sampleRate / 16000;
+    for (let i = 0; i < outputLength; i++) {
+      const position = i * ratio;
+      const left = Math.floor(position);
+      const right = Math.min(channel.length - 1, left + 1);
+      const mix = position - left;
+      output[i] = (channel[left] || 0) * (1 - mix) + (channel[right] || 0) * mix;
+    }
+    return output;
   } finally {
     await context.close().catch(() => {});
   }
