@@ -464,10 +464,11 @@
         use.onclick = () => {
           $('startTime').value = item.start.toFixed(1);
           $('endTime').value = item.end.toFixed(1);
-          $('clipTitle').value = ('Viral candidate ' + this.time(item.start)).slice(0,90);
+          if (typeof window.makeAutoMetadata === 'function') window.makeAutoMetadata(item);
+          else $('clipTitle').value = ('Viral candidate ' + this.time(item.start)).slice(0,90);
           const editor = document.getElementById('startTime');
           editor.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          this.setStatus('Candidate copied into the editor. Preview it and adjust the boundaries before exporting.', 'success');
+          this.setStatus('Candidate loaded with a clip-specific title and caption suggestions where transcript clues are available. Review the moment, wording, and boundaries before exporting.', 'success');
         };
         actions.append(preview, use); card.append(meta, evidence, excerpt, actions); list.append(card);
       });
