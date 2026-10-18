@@ -322,14 +322,14 @@ $('exportClip').onclick=async()=>{
   const sourceWidth=video.videoWidth||1280,sourceHeight=video.videoHeight||720;
   const vertical=$('aspect').value==='vertical';
   const requestedQuality=$('exportQuality')?.value||'auto';
-  const compactAuto=requestedQuality==='auto'&&((Number(navigator.deviceMemory)>0&&Number(navigator.deviceMemory)<=4)||Math.min(window.innerWidth||999,window.screen?.width||999)<=600);
+  const compactAuto=requestedQuality==='auto'&&((Number(navigator.deviceMemory)>0&&Number(navigator.deviceMemory)<=4)||Math.min(window.innerWidth||999,window.screen?.width||999)<=700);
   const quality=requestedQuality==='auto'?(compactAuto?'compact':'standard'):requestedQuality;
   const maxEdge=quality==='compact'?854:quality==='high'?1920:1280;
   let w,h;
   if(vertical){h=maxEdge;w=Math.round(maxEdge*9/16);}
   else{const scale=Math.min(1,maxEdge/Math.max(sourceWidth,sourceHeight));w=Math.round(sourceWidth*scale);h=Math.round(sourceHeight*scale);}
   w=Math.max(2,w-(w%2));h=Math.max(2,h-(h%2));
-  const fps=quality==='high'?30:24;
+  const fps=quality==='high'?30:quality==='compact'?20:24;
   const canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;
   const ctx=canvas.getContext('2d',{alpha:false});if(!ctx)throw new Error('Canvas is unavailable in this browser');
   stream=canvas.captureStream(fps);
