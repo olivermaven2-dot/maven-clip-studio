@@ -76,31 +76,81 @@
       return { start, end };
     },
     scoreText(text, duration) {
-      const lines = text.split(/\n+/).map(s => s.trim()).filter(Boolean);
-      const hooks = /\b(wow|wait|what|why|how|secret|mistake|never|always|truth|best|worst|insane|unbelievable|finally|actually|because|shocking|incredible|tip|trick|fail|win|lost|found|reveals?|proof|learn|watch|look|imagine|important|problem|solution|versus|vs\.?|before|after|number one|top \d+)\b/i;
-      // Accept MM:SS and HH:MM:SS timestamps, optionally in square brackets.
-      const timestamp = /(?:\[)?(\d{1,2}):(\d{2})(?::(\d{2}))?(?:\])?/
+      const lines = String(text || '').split(/\n+/).map(s => s.trim()).filter(Boolean);
+      const hooks = /\b(wait until|you won't believe|here is why|here's why|the reason|what happened next|watch what happens|look what|did you see|the truth|nobody expected|i never knew|turns out|the secret|one thing|the biggest|the most|this changed|that's why|this is how|how to|step by step|before and after|number one|top \d+)\b/i;
+      const curiosity = /\b(why|how|what if|who knew|secret|reveals?|proof|truth|actually|apparently|turns out|because|the reason|until|unless|instead)\b/i;
+      const emotion = /\b(wow|wait|no way|oh my god|amazing|incredible|insane|unbelievable|shocking|terrifying|beautiful|hilarious|furious|heartbreaking|surprised|surprise|excited|angry|laugh|laughing|screaming|crying|unreal)\b/i;
+      const payoff = /\b(finally|result|therefore|so that|which means|that means|the answer|solved|worked|failed|won|lost|saved|scored|equalizer|winner|mistake|lesson|takeaway|in the end|as a result)\b/i;
+      const specificity = /\b\d+(?:\.\d+)?%?\b|\b(first|second|third|last|only|exactly|every|never|always)\b/i;
+      const filler = /^(um+|uh+|erm+|you know|like|so yeah|okay guys|welcome back|don't forget to like|subscribe to my channel)[,.!\s]*$/i;
+      const timestamp = /(?:\[)?(\d{1,2}):(\d{2})(?::(\d{2}))?(?:\])?/;
       const timed = [];
       for (const line of lines) {
         const match = line.match(timestamp);
         if (!match) continue;
-        const seconds = match[3] !== undefined ? Number(match[1]) * 3600 + Number(match[2]) * 60 + Number(match[3]) : Number(match[1]) * 60 + Number(match[2]);
+        const seconds = match[3] !== undefined
+          ? Number(match[1]) * 3600 + Number(match[2]) * 60 + Number(match[3])
+          : Number(match[1]) * 60 + Number(match[2]);
         if (seconds >= duration || !Number.isFinite(seconds)) continue;
         const body = line.replace(timestamp, '').replace(/^[-:–—\s]+/, '').trim();
+        if (!body) continue;
         const words = body.split(/\s+/).filter(Boolean).length;
         const momentType = classifyMoment(body);
-        const score = 35 + (hooks.test(body) ? 24 : 0) + (momentType !== 'Moment to review' ? 8 : 0) + Math.min(20, words * 1.2) + (/[!?]{1,}/.test(body) ? 8 : 0);
-        timed.push({ center: seconds, score: Math.min(95, score), momentType, reason: momentType + (hooks.test(body) ? ' · strong hook language' : ' · transcript cue'), excerpt: body || line });
-      }
-      if (!timed.length) {
-        const chunks = text.split(/(?<=[.!?])\s+|\n+/).map(s => s.trim()).filter(s => s.length > 18);
-        chunks.forEach((body, i) => {
-          const momentType = classifyMoment(body);
-          const score = 30 + (hooks.test(body) ? 28 : 0) + (momentType !== 'Moment to review' ? 8 : 0) + Math.min(18, body.split(/\s+/).length) + (/[!?]/.test(body) ? 8 : 0);
-          timed.push({ center: duration > 0 ? (i + 0.5) / chunks.length * duration : i * 10, score: Math.min(88, score), momentType, reason: momentType + (hooks.test(body) ? ' · hook words found' : ' · transcript passage'), excerpt: body });
+        let score = 28;
+        if (hooks.test(body)) score += 18;
+        if (curiosity.test(body)) score += 8;
+        if (emotion.test(body) || /[!?]{2,}/.test(body)) score += 10;
+        if (payoff.test(body)) score += 9;
+        if (specificity.test(body)) score += 5;
+        if (momentType !== 'Moment to review') score += 7;
+        score += Math.min(12, words * 0.7);
+        if (words < 4) score -= 10;
+        if (words > 45) score -= 5;
+        if (filler.test(body)) score -= 30;
+        if (/^(and|but|so|then|because|um|uh)\b/i.test(body)) score -= 3;
+        timed.push({
+          center: seconds,
+          score: Math.max(15, Math.min(96, Math.round(score))),
+          momentType,
+          reason: momentType + ' · ' + [
+            hooks.test(body) ? 'curiosity hook' : '',
+            emotion.test(body) ? 'emotion/reaction' : '',
+            payoff.test(body) ? 'payoff or outcome' : '',
+            specificity.test(body) ? 'specific detail' : ''
+          ].filter(Boolean).join(' + ') || 'transcript context',
+          excerpt: body
         });
       }
-      return timed.sort((a,b) => b.score-a.score).slice(0, 8).map((item, i) => {
+      if (!timed.length) {
+        const chunks = String(text || '').split(/(?<=[.!?])\s+|\n+/).map(s => s.trim()).filter(s => s.length > 18);
+        chunks.forEach((body, i) => {
+          const words = body.split(/\s+/).filter(Boolean).length;
+          const momentType = classifyMoment(body);
+          let score = 28 + (hooks.test(body) ? 18 : 0) + (curiosity.test(body) ? 8 : 0)
+            + (emotion.test(body) ? 10 : 0) + (payoff.test(body) ? 9 : 0)
+            + (specificity.test(body) ? 5 : 0) + (momentType !== 'Moment to review' ? 7 : 0)
+            + Math.min(12, words * 0.7);
+          if (words < 4) score -= 10;
+          if (filler.test(body)) score -= 30;
+          timed.push({
+            center: duration > 0 ? (i + 0.5) / chunks.length * duration : i * 10,
+            score: Math.max(15, Math.min(90, Math.round(score))),
+            momentType,
+            reason: momentType + ' · transcript evidence',
+            excerpt: body
+          });
+        });
+      }
+      // Rank by language evidence, but spread suggestions across the timeline so the list
+      // does not show eight nearly identical moments from one short passage.
+      const ranked = timed.sort((a,b) => b.score-a.score);
+      const minimumGap = Math.max(3, Math.min(this.clipLength() * 0.45, 9));
+      const chosen = [];
+      for (const item of ranked) {
+        if (chosen.every(existing => Math.abs(existing.center - item.center) >= minimumGap)) chosen.push(item);
+        if (chosen.length >= 8) break;
+      }
+      return chosen.map((item, i) => {
         const w = this.safeWindow(item.center, duration, this.clipLength());
         return { ...item, ...w, source: 'transcript', id: 'text-' + i };
       });
