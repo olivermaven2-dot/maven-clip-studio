@@ -1,6 +1,7 @@
 (() => {
   const $ = id => document.getElementById(id);
   const selectedMoments = new Map();
+  window.mavenGetSelectedMoments = () => [...selectedMoments.values()].sort((a,b)=>(Number(b.score)||0)-(Number(a.score)||0));
   const loadedMomentKeys = new Set();
   let momentLoadIndex = 0;
   const momentKey = item => Number(item.start).toFixed(1)+'-'+Number(item.end).toFixed(1);
