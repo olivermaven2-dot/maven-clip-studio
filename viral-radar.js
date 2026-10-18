@@ -167,10 +167,11 @@
       // Scale scan cost to the device: repeated seeks are expensive on low-memory phones.
       const memory = Number(navigator.deviceMemory) || 4;
       const mobile = window.matchMedia && window.matchMedia('(max-width: 700px)').matches;
-      const sampleCap = memory <= 3 ? 28 : memory <= 4 || mobile ? 42 : 80;
-      const sampleCount = Math.min(sampleCap, Math.max(10, Math.floor(duration / (memory <= 3 || mobile ? 4 : 2))));
+      const lowResource = memory <= 4 || mobile;
+      const sampleCap = memory <= 3 || mobile ? 28 : memory <= 4 ? 36 : 80;
+      const sampleCount = Math.min(sampleCap, Math.max(8, Math.floor(duration / (lowResource ? 5 : 2))));
       const canvas = document.createElement('canvas');
-      const sampleWidth = memory <= 3 ? 32 : mobile || memory <= 4 ? 40 : 48;
+      const sampleWidth = lowResource ? 32 : 48;
       canvas.width = sampleWidth; canvas.height = Math.round(sampleWidth * 9 / 16);
       const ctx = canvas.getContext('2d', { willReadFrequently: true });
       const samples = [];
