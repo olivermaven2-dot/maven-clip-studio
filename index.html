@@ -163,11 +163,20 @@ function stopScreenCaptureTracks(){if(screenCaptureStream){screenCaptureStream.g
 $('startScreenRecord').onclick=async()=>{
  const startBtn=$('startScreenRecord'),stopBtn=$('stopScreenRecord');
  const previewVideo=document.querySelector('#preview video');
- if(!previewVideo||!previewVideo.src){setNotice('screenRecordStatus','Load a video into Maven’s preview first, then start preview recording.','error');return}
- if(typeof previewVideo.captureStream!=='function'&&typeof previewVideo.mozCaptureStream!=='function'){setNotice('screenRecordStatus','Direct preview recording is not supported by this browser. Try the latest Chrome on HTTPS.','error');return}
+ const youtubeFrame=document.querySelector('#preview iframe#youtubeFrame');
+ const recordingYoutube=!previewVideo&&!!youtubeFrame;
+ if((!previewVideo||!previewVideo.src)&&!recordingYoutube){setNotice('screenRecordStatus','Load a local video or a YouTube video into the shared preview first.','error');return}
  if(!window.MediaRecorder){setNotice('screenRecordStatus','This browser cannot record video. Try the latest Chrome.','error');return}
+ if(recordingYoutube&&(!navigator.mediaDevices||typeof navigator.mediaDevices.getDisplayMedia!=='function')){setNotice('screenRecordStatus','This browser cannot capture a tab or screen. Try a supported desktop browser, or use a local video file.','error');return}
+ if(!recordingYoutube&&typeof previewVideo.captureStream!=='function'&&typeof previewVideo.mozCaptureStream!=='function'){setNotice('screenRecordStatus','Direct preview recording is not supported by this browser. Try the latest Chrome on HTTPS.','error');return}
  try{
-  screenCaptureStream=(previewVideo.captureStream||previewVideo.mozCaptureStream).call(previewVideo);
+  if(recordingYoutube){
+   screenCaptureStream=await navigator.mediaDevices.getDisplayMedia({video:{frameRate:30},audio:true});
+   if(!screenCaptureStream.getVideoTracks().length)throw new Error('No shared screen video track was provided.');
+   screenCaptureStream.getVideoTracks()[0].addEventListener('ended',()=>{if(screenRecorder&&screenRecorder.state==='recording')screenRecorder.stop()},{once:true});
+  }else{
+   screenCaptureStream=(previewVideo.captureStream||previewVideo.mozCaptureStream).call(previewVideo);
+  }
   let recorderStream=screenCaptureStream;
   const videoAudioTracks=screenCaptureStream.getAudioTracks();
   if($('includeMicAudio').checked){
@@ -199,10 +208,10 @@ $('startScreenRecord').onclick=async()=>{
    setNotice('screenRecordStatus','Preview recording loaded into the editor ('+(blob.size/1024/1024).toFixed(1)+' MB). Click AutoClip to scan it and suggest a clip.','success');
    $('preview').scrollIntoView({behavior:'smooth',block:'center'});
   };
-  previewVideo.addEventListener('ended',()=>{if(screenRecorder&&screenRecorder.state==='recording')screenRecorder.stop()},{once:true});
+  if(previewVideo)previewVideo.addEventListener('ended',()=>{if(screenRecorder&&screenRecorder.state==='recording')screenRecorder.stop()},{once:true});
   screenRecorder.start(500);startBtn.disabled=true;stopBtn.disabled=false;
-  try{await previewVideo.play()}catch(e){}
-  setNotice('screenRecordStatus',hasAudio?'Recording the video playing in Maven’s preview, including its available audio. It will stop at the end or when you click Stop & use recording.':'Recording the video playing in Maven’s preview. No source audio track was available; microphone audio can be included if selected.','success');
+  if(previewVideo){try{await previewVideo.play()}catch(e){}}
+  setNotice('screenRecordStatus',recordingYoutube?'YouTube recording started. In the browser sharing prompt, choose this tab and enable tab audio if offered. The recording may include the Maven page around the player. Stop sharing or tap Stop & use recording to finish.':(hasAudio?'Recording the video playing in Maven’s preview, including its available audio. It will stop at the end or when you click Stop & use recording.':'Recording the video playing in Maven’s preview. No source audio track was available; microphone audio can be included if selected.'),'success');
  }catch(err){stopScreenCaptureTracks();startBtn.disabled=false;stopBtn.disabled=true;setNotice('screenRecordStatus','Could not start preview recording: '+(err&&err.message?err.message:'browser error'),'error')}
 };
 $('stopScreenRecord').onclick=()=>{if(screenRecorder&&screenRecorder.state==='recording'){ $('stopScreenRecord').disabled=true;setNotice('screenRecordStatus','Finishing preview recording and loading it into the editor…');screenRecorder.stop()}};
