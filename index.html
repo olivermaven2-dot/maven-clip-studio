@@ -80,7 +80,7 @@
   <h3>05 / Viral Radar <span class="tag">DISCOVERY LAB</span></h3>
   <p class="radar-help">Find moments worth reviewing. Local scans combine noticeable visual changes, audio-energy peaks, and optional transcript hooks. Combined evidence can raise a candidate for review; it cannot predict virality.</p>
   <div class="radar-grid">
-    <div class="field"><label for="radarTranscript">Transcript or timestamped notes (works with YouTube links too)</label><textarea id="radarTranscript" rows="5" placeholder="[00:14] Wait until you see what happens next!&#10;00:38 This is the biggest mistake beginners make.&#10;01:12 Here is how to fix it…"></textarea></div>
+    <div class="field"><label for="radarTranscript">Automatic transcript and timestamped notes</label><textarea id="radarTranscript" rows="5" placeholder="Transcribe speech from a local video or screen recording, or paste timestamped notes."></textarea><div class="buttonrow" style="margin-top:8px"><button id="transcribeSpeech" class="primary" type="button">Transcribe speech — free on this device</button></div><div id="transcriptionStatus" class="notice hidden" role="status" aria-live="polite"></div><div class="small" style="margin-top:7px">Runs a downloadable speech model in your browser; no paid API and no video upload. For YouTube, first use Record preview video, then transcribe the saved recording. The model and audio converter are large downloads and may run slowly on phones.</div></div>
     <div class="field"><label>Discovery tips</label><div class="caption-preview">For timestamped notes, start each line with a time like [00:14] or 01:12. Paste only text you have permission to use. For an uploaded video, scan frames as an extra clue. YouTube player video itself is not extracted or downloaded.</div><div class="small" style="margin-top:8px">Candidates remain local in this tab. Check context, rights, audio, and the full clip before using it.</div></div>
   </div>
   <div class="radar-grid" style="margin-top:12px"><div class="field"><label for="radarClipLength">Suggested clip length</label><select id="radarClipLength"><option value="8">8 seconds</option><option value="15" selected>15 seconds</option><option value="20">20 seconds</option><option value="30">30 seconds</option></select></div><div class="field"><label>Preview candidates</label><div class="small">Play each moment in the uploaded video before choosing it.</div></div></div><div class="radar-actions"><button id="analyzeTranscript" type="button">Analyze transcript / notes</button><button id="scanVideo" type="button" class="primary">Scan video + audio</button><button id="autoBuildClip" class="primary" type="button">✦ AutoClip: Pick best moment</button></div>
@@ -137,6 +137,7 @@
 <script src="viral-radar.js"></script>
 <script src="original-story.js"></script>
 <script src="viral-hashtags.js"></script>
+<script type="module" src="transcription.js"></script>
 <script>
 (() => {
 const $ = id => document.getElementById(id);
@@ -146,6 +147,7 @@ function syncRememberedYtKey(){try{if($('rememberYtApiKey').checked){const key=$
 $('rememberYtApiKey').addEventListener('change',syncRememberedYtKey);
 $('ytApiKey').addEventListener('input',()=>{if($('rememberYtApiKey').checked)syncRememberedYtKey()});
 let objectUrl = null, currentFile = null, exportedBlob = null, exportedUrl = null, clipName = '', drafts = loadDrafts();
+window.getMavenCurrentFile = () => currentFile;
 const video = document.createElement('video'); video.controls = true; video.playsInline = true; video.preload = 'metadata';
 const fmt = s => {if(!Number.isFinite(s)) return '00:00';s=Math.max(0,Math.floor(s));return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')};
 function loadDrafts(){try{const saved=localStorage.getItem('mavenClipStudioDrafts');const parsed=saved?JSON.parse(saved):[];return Array.isArray(parsed)?parsed.filter(d=>d&&typeof d.title==='string'):[]}catch(e){return []}}
