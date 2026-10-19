@@ -523,9 +523,11 @@ function makeAutoMetadata(candidate){
   const time=m[3]!==undefined?Number(m[1])*3600+Number(m[2])*60+Number(m[3]):Number(m[1])*60+Number(m[2]);
   return {time,text:(m[4]||'').trim()};
  }).filter(x=>x.text);
- const hasSpecificExcerpt=candidate&&candidate.excerpt&&candidate.excerpt!=='Review the full context and sound.';
- const matching=transcriptLines.filter(x=>x.time!==null&&x.time>=start&&x.time<end);
- const rawText=(hasSpecificExcerpt?candidate.excerpt:'')||matching.map(x=>x.text).join(' ')||transcriptLines.find(x=>x.text)?.text||'';
+ // Scanner diagnostics explain why a moment was selected; they are not spoken words or suitable captions.
+ const isAnalysisLabel=value=>/^(?:visual activity detected|audio activity detected|activity detected|visual change detected|frame change detected|audio energy detected|visual scan detected)\b/i.test(String(value||'').trim());
+ const hasSpecificExcerpt=candidate&&candidate.excerpt&&candidate.excerpt!=='Review the full context and sound.'&&!isAnalysisLabel(candidate.excerpt);
+ const matching=transcriptLines.filter(x=>x.time!==null&&x.time>=start&&x.time<end&&!isAnalysisLabel(x.text));
+ const rawText=(hasSpecificExcerpt?candidate.excerpt:'')||matching.map(x=>x.text).join(' ')||transcriptLines.find(x=>x.text&&!isAnalysisLabel(x.text))?.text||'';
  const clean=String(rawText).replace(/\[[0-9:]+\]/g,' ').replace(/[#<>]/g,' ').replace(/\s+/g,' ').trim();
  const sentence=(clean.split(/(?<=[.!?])\s+/)[0]||'').trim();
  const momentType=String(candidate&&candidate.momentType||'');
@@ -547,7 +549,7 @@ function makeAutoMetadata(candidate){
  const title=titleText.replace(/[\r\n]+/g,' ').trim();
  $('clipTitle').value=title.slice(0,90);
  $('postTitle').value=title.slice(0,95);
- const captionSource=(matching.length?matching.map(x=>x.text).join(' '):clean).replace(/\s+/g,' ').trim();
+ const captionSource=(matching.length?matching.map(x=>x.text).join(' '):(isAnalysisLabel(clean)?'':clean)).replace(/\s+/g,' ').trim();
  $('captionText').value=captionSource?captionSource.slice(0,220):'';
  // Turn timestamped transcript lines into readable, clip-relative subtitle cues.
  const cueLines=[];
