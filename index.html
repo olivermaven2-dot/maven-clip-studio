@@ -27,7 +27,7 @@
 <div class="small">Works with direct video-file links when the host permits browser downloads. If blocked, download from the source website and import the file above.</div>
 <div id="youtubePane" class="hidden"><label for="youtubeUrl">YouTube video URL</label><div class="row"><input id="youtubeUrl" type="url" placeholder="https://www.youtube.com/watch?v=…"><button id="loadYoutube" class="primary" type="button">Preview</button></div><div class="notice">YouTube preview works with AutoClip: it can prepare a suggested segment and fill in clip details. For true frame/audio scanning and editable video export, load a source file you own or are authorized to edit.</div><div id="youtubePreview" class="hidden" style="margin-top:12px"></div></div>
 <div class="divider"></div><div class="preview" id="preview"><div class="placeholder"><b>▶</b><strong>Your video preview</strong><div class="muted">Choose a local video to begin editing</div></div><div id="captionOverlay" class="caption-overlay hidden" aria-hidden="true"></div></div><div class="preview-label"><span id="sourceName">No source loaded</span><span id="durationLabel">00:00 / 00:00</span></div>
-<div class="field" id="screenRecordControls"><strong>Record Maven preview</strong><div class="small">Records only the video element inside Maven’s preview. It never asks to share a tab, window, or screen.</div><label class="remember-key"><input id="includeMicAudio" type="checkbox"> Include microphone audio too</label></div><div class="buttonrow"><button id="startScreenRecord" class="primary" type="button">⏺ Record preview video</button><button id="stopScreenRecord" type="button" disabled>■ Stop &amp; use recording</button></div><div id="screenRecordStatus" class="notice hidden" role="status"></div><div class="small">Records the preview video directly, not the surrounding page. YouTube embeds cannot be captured directly because of browser security; use a permitted local video file for this recorder.</div>
+<div class="field" id="screenRecordControls"><strong>Record preview video</strong><div class="small">Local videos are captured directly. For YouTube, Chrome will ask you to share a tab; choose the Maven Clip Studio tab playing the preview and enable tab audio if offered. Tab recording may include the surrounding page.</div><label class="remember-key"><input id="includeMicAudio" type="checkbox"> Include microphone audio too</label></div><div class="buttonrow"><button id="startScreenRecord" class="primary" type="button">⏺ Record preview video</button><button id="stopScreenRecord" type="button" disabled>■ Stop &amp; use recording</button></div><div id="screenRecordStatus" class="notice hidden" role="status"></div><div class="small">For YouTube, recording uses Chrome’s tab-sharing permission because the embedded player cannot be captured directly. Only record content you have permission to use.</div>
 <div class="row"><button id="playBtn" type="button" disabled>▶ Play</button><button id="markStart" type="button" disabled>Set start to current time</button><button id="markEnd" type="button" disabled>Set end to current time</button></div></div>
 <div class="panel"><h3>02 / Shape your clip</h3><p class="muted">Choose the exact moment. Export runs locally in your browser; longer clips may take a while.</p><div class="rangegrid"><div class="field"><label for="startTime">Start time (seconds)</label><input id="startTime" type="number" min="0" step=".1" value="0"></div><div class="field"><label for="endTime">End time (seconds)</label><input id="endTime" type="number" min="0" step=".1" value="15"></div></div>
 <div class="trim-timeline" aria-label="Clip trim timeline">
@@ -160,27 +160,36 @@ $('dockExport').onclick=()=>{if(!$('dockExport').disabled)$('exportClip').click(
 const dockObserver=new MutationObserver(syncMobileActionDock);['previewClip','exportClip'].forEach(id=>dockObserver.observe($(id),{attributes:true,attributeFilter:['disabled']}));
 function enableEditor(on){['playBtn','markStart','markEnd','previewClip','exportClip'].forEach(id=>$(id).disabled=!on);syncMobileActionDock()}
 function setSource(file,url){currentFile=file; if(objectUrl) URL.revokeObjectURL(objectUrl);objectUrl=url||URL.createObjectURL(file);video.src=objectUrl;video.load();$('preview').replaceChildren(video,$('captionOverlay'));$('sourceName').textContent=file.name;$('clipTitle').value=file.name.replace(/\.[^.]+$/,'').slice(0,90);enableEditor(true);exportedBlob=null;updateCaptionPreview()}
-let screenCaptureStream=null,screenRecorder=null,screenChunks=[],screenStartedAt=0,screenMicStream=null,screenAudioContext=null;
-function stopScreenCaptureTracks(){if(screenCaptureStream){screenCaptureStream.getTracks().forEach(track=>track.stop());screenCaptureStream=null}if(screenMicStream){screenMicStream.getTracks().forEach(track=>track.stop());screenMicStream=null}if(screenAudioContext){screenAudioContext.close().catch(()=>{});screenAudioContext=null}}
+let screenCaptureStream=null,screenRecorder=null,screenChunks=[],screenStartedAt=0,screenMicStream=null,screenAudioContext=null,usingYoutubeTabCapture=false;
+function stopScreenCaptureTracks(){if(screenCaptureStream){screenCaptureStream.getTracks().forEach(track=>track.stop());screenCaptureStream=null}if(screenMicStream){screenMicStream.getTracks().forEach(track=>track.stop());screenMicStream=null}if(screenAudioContext){screenAudioContext.close().catch(()=>{});screenAudioContext=null}usingYoutubeTabCapture=false}
 $('startScreenRecord').onclick=async()=>{
  const startBtn=$('startScreenRecord'),stopBtn=$('stopScreenRecord');
  const previewVideo=document.querySelector('#preview video');
  const youtubeFrame=document.querySelector('#preview iframe#youtubeFrame');
  if(!window.MediaRecorder){setNotice('screenRecordStatus','This browser cannot record video. Try the latest Chrome.','error');return}
- if(!previewVideo||!previewVideo.src){
-  const message=youtubeFrame
-   ?'YouTube preview recording is blocked by browser security. To record only the video without a screen chooser, download a video you are allowed to use and load it as a local file.'
-   :'Load a local video into Maven’s preview first.';
-  setNotice('screenRecordStatus',message,'error');return;
+ const isYoutube=!!youtubeFrame&&(!previewVideo||!previewVideo.src);
+ if(isYoutube&&(!navigator.mediaDevices||!navigator.mediaDevices.getDisplayMedia)){
+  setNotice('screenRecordStatus','This browser cannot share a Chrome tab. Open Maven Clip Studio in an up-to-date Chrome browser and try again.','error');return;
  }
- const captureMethod=previewVideo.captureStream||previewVideo.mozCaptureStream;
- if(typeof captureMethod!=='function'){
-  setNotice('screenRecordStatus','This browser cannot capture the preview video directly. No screen/window chooser will be opened. Try the latest Chrome or another browser that supports video capture.','error');return;
+ if(!isYoutube&&(!previewVideo||!previewVideo.src)){
+  setNotice('screenRecordStatus','Load a local video or open a YouTube video in the preview first.','error');return;
  }
  try{
-  // Capture the HTML video element itself; never request the screen, tab, or window.
-  screenCaptureStream=captureMethod.call(previewVideo);
-  let recorderStream=screenCaptureStream;
+  let recorderStream;
+  usingYoutubeTabCapture=isYoutube;
+  if(isYoutube){
+   setNotice('screenRecordStatus','Chrome will ask what to share. Choose the Chrome tab showing Maven Clip Studio and the playing YouTube preview; enable Share tab audio if offered.');
+   screenCaptureStream=await navigator.mediaDevices.getDisplayMedia({video:{frameRate:30},audio:true});
+   if(!screenCaptureStream.getVideoTracks().length)throw new Error('No shared video track was provided. Choose a Chrome tab and try again.');
+   recorderStream=screenCaptureStream;
+  }else{
+   const captureMethod=previewVideo.captureStream||previewVideo.mozCaptureStream;
+   if(typeof captureMethod!=='function'){
+    setNotice('screenRecordStatus','This browser cannot capture this local preview directly. Try the latest Chrome.','error');return;
+   }
+   screenCaptureStream=captureMethod.call(previewVideo);
+   recorderStream=screenCaptureStream;
+  }
   const videoAudioTracks=screenCaptureStream.getAudioTracks();
   if($('includeMicAudio').checked){
    if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)throw new Error('Microphone capture is not supported by this browser.');
@@ -200,24 +209,27 @@ $('startScreenRecord').onclick=async()=>{
   const mime=['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'].find(type=>{try{return MediaRecorder.isTypeSupported(type)}catch(e){return false}});
   screenChunks=[];screenStartedAt=Date.now();screenRecorder=mime?new MediaRecorder(recorderStream,{mimeType:mime}):new MediaRecorder(recorderStream);
   screenRecorder.ondataavailable=e=>{if(e.data&&e.data.size)screenChunks.push(e.data)};
-  screenRecorder.onerror=()=>setNotice('screenRecordStatus','The browser reported a preview-recording error. Try a shorter segment.','error');
+  screenRecorder.onerror=()=>setNotice('screenRecordStatus','The browser reported a recording error. Try a shorter segment.','error');
   screenRecorder.onstop=()=>{
    const type=screenRecorder&&screenRecorder.mimeType||'video/webm';
    const blob=new Blob(screenChunks,{type});
    stopScreenCaptureTracks();startBtn.disabled=false;stopBtn.disabled=true;
-   if(!blob.size){setNotice('screenRecordStatus','No video data was captured. Play the video in Maven’s preview and try again.','error');return}
+   if(!blob.size){setNotice('screenRecordStatus','No video data was captured. Play the video and try again.','error');return}
    const file=new File([blob],'maven-preview-recording-'+new Date().toISOString().replace(/[:.]/g,'-')+'.webm',{type:blob.type||'video/webm'});
    setSource(file);$('tabUpload').click();$('fileInput').value='';
-   setNotice('screenRecordStatus','Preview recording loaded into the editor ('+(blob.size/1024/1024).toFixed(1)+' MB). Click AutoClip to scan it and suggest a clip.','success');
+   setNotice('screenRecordStatus','Recording loaded into the editor ('+(blob.size/1024/1024).toFixed(1)+' MB). Click AutoClip to scan it and suggest a clip.','success');
    $('preview').scrollIntoView({behavior:'smooth',block:'center'});
   };
-  if(previewVideo)previewVideo.addEventListener('ended',()=>{if(screenRecorder&&screenRecorder.state==='recording')screenRecorder.stop()},{once:true});
+  screenCaptureStream.getVideoTracks().forEach(track=>track.addEventListener('ended',()=>{if(screenRecorder&&screenRecorder.state==='recording')screenRecorder.stop()},{once:true}));
+  if(!isYoutube&&previewVideo)previewVideo.addEventListener('ended',()=>{if(screenRecorder&&screenRecorder.state==='recording')screenRecorder.stop()},{once:true});
   screenRecorder.start(500);startBtn.disabled=true;stopBtn.disabled=false;
-  if(previewVideo){try{await previewVideo.play()}catch(e){}}
-  setNotice('screenRecordStatus',hasAudio?'Recording only the video inside Maven’s preview, including its available audio. It will stop at the end or when you click Stop & use recording.':'Recording only the video inside Maven’s preview. No source audio track was available; microphone audio can be included if selected.','success');
- }catch(err){stopScreenCaptureTracks();startBtn.disabled=false;stopBtn.disabled=true;setNotice('screenRecordStatus','Could not start preview recording: '+(err&&err.message?err.message:'browser error'),'error')}
+  if(!isYoutube&&previewVideo){try{await previewVideo.play()}catch(e){}}
+  setNotice('screenRecordStatus',isYoutube
+   ?(hasAudio?'Recording the shared Chrome tab, including available tab audio. The recording may show the surrounding Maven page too. Stop sharing or click Stop & use recording when finished.':'Recording the shared Chrome tab. No tab-audio track was provided; enable Share tab audio in Chrome’s chooser and try again if you need sound.')
+   :(hasAudio?'Recording the local video preview and its available audio.':'Recording the local video preview. No source audio track was available; microphone audio can be included if selected.'),'success');
+ }catch(err){stopScreenCaptureTracks();startBtn.disabled=false;stopBtn.disabled=true;setNotice('screenRecordStatus','Could not start recording: '+(err&&err.message?err.message:'browser error'),'error')}
 };
-$('stopScreenRecord').onclick=()=>{if(screenRecorder&&screenRecorder.state==='recording'){ $('stopScreenRecord').disabled=true;setNotice('screenRecordStatus','Finishing preview recording and loading it into the editor…');screenRecorder.stop()}};
+$('stopScreenRecord').onclick=()=>{if(screenRecorder&&screenRecorder.state==='recording'){ $('stopScreenRecord').disabled=true;setNotice('screenRecordStatus','Finishing recording and loading it into the editor…');screenRecorder.stop()}};
 
 $('tabUpload').onclick=()=>{$('tabUpload').classList.add('active');$('tabYoutube').classList.remove('active');$('uploadPane').classList.remove('hidden');$('youtubePane').classList.add('hidden')};
 $('tabYoutube').onclick=()=>{$('tabYoutube').classList.add('active');$('tabUpload').classList.remove('active');$('youtubePane').classList.remove('hidden');$('uploadPane').classList.add('hidden')};
