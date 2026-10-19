@@ -312,6 +312,7 @@ function updateCaptionPreview(){const text=captionAtTime(video.currentTime||0),e
 $('captionText').addEventListener('input',updateCaptionPreview);$('timedCaptions').addEventListener('input',updateCaptionPreview);$('captionSize').addEventListener('change',updateCaptionPreview);$('captionPosition').addEventListener('change',updateCaptionPreview);$('clearTimedCaptions').onclick=()=>{$('timedCaptions').value='';updateCaptionPreview()};
 function validRange(a,b){if(!currentFile||!Number.isFinite(a)||!Number.isFinite(b)||a<0||b<=a||b>video.duration){setNotice('exportStatus','Choose a valid time range within the loaded video.','error');return false}return true}
 function supportedMime(){if(!window.MediaRecorder||typeof MediaRecorder.isTypeSupported!=='function')return '';return ['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'].find(t=>{try{return MediaRecorder.isTypeSupported(t)}catch(e){return false}})||''}
+let exportAudioContext=null,exportAudioSource=null;
 $('exportClip').onclick=async()=>{
  const start=Number($('startTime').value),end=Number($('endTime').value);
  if(!validRange(start,end))return;
@@ -351,7 +352,25 @@ $('exportClip').onclick=async()=>{
    if(video.captureStream)audioStream=video.captureStream();
    else if(video.mozCaptureStream)audioStream=video.mozCaptureStream();
    if(audioStream)audioStream.getAudioTracks().forEach(t=>stream.addTrack(t));
-  }catch(e){/* Silent video export is still possible on browsers without audio capture. */}
+  }catch(e){/* Use Web Audio fallback below when direct audio capture is unavailable. */}
+  // Some browsers do not expose the loaded WebM's audio through video.captureStream().
+  // Route the media element audio into a fresh recording destination as a fallback.
+  if(!stream.getAudioTracks().length&&window.AudioContext){
+   try{
+    if(!exportAudioContext)exportAudioContext=new AudioContext();
+    if(!exportAudioSource){
+     exportAudioSource=exportAudioContext.createMediaElementSource(video);
+     exportAudioSource.connect(exportAudioContext.destination);
+    }
+    const audioDestination=exportAudioContext.createMediaStreamDestination();
+    exportAudioSource.connect(audioDestination);
+    audioDestination.stream.getAudioTracks().forEach(t=>stream.addTrack(t));
+    await exportAudioContext.resume();
+   }catch(audioErr){setNotice('exportStatus','Audio capture is unavailable in this browser; the export may be silent. Try Chrome and check that the source recording plays with sound.','error')}
+  }
+  if(!stream.getAudioTracks().length){
+   setNotice('exportStatus','Warning: no audio track was available for this export. Check that the source video plays with sound before exporting.','error');
+  }
   const chunks=[];
   const videoBitsPerSecond=quality==='compact'?1800000:quality==='high'?6500000:3500000;
   recorder=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond,audioBitsPerSecond:128000});
