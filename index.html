@@ -27,7 +27,7 @@
 <div class="small">Works with direct video-file links when the host permits browser downloads. If blocked, download from the source website and import the file above.</div>
 <div id="youtubePane" class="hidden"><label for="youtubeUrl">YouTube video URL</label><div class="row"><input id="youtubeUrl" type="url" placeholder="https://www.youtube.com/watch?v=…"><button id="loadYoutube" class="primary" type="button">Preview</button></div><div class="notice">YouTube preview works with AutoClip: it can prepare a suggested segment and fill in clip details. For true frame/audio scanning and editable video export, load a source file you own or are authorized to edit.</div><div id="youtubePreview" class="hidden" style="margin-top:12px"></div></div>
 <div class="divider"></div><div class="preview" id="preview"><div class="placeholder"><b>▶</b><strong>Your video preview</strong><div class="muted">Choose a local video to begin editing</div></div><div id="captionOverlay" class="caption-overlay hidden" aria-hidden="true"></div></div><div class="preview-label"><span id="sourceName">No source loaded</span><span id="durationLabel">00:00 / 00:00</span></div>
-<div class="field" id="screenRecordControls"><strong>Record Maven preview</strong><div class="small">Automatically records the video playing inside Maven’s preview. No screen-sharing prompt is needed.</div><label class="remember-key"><input id="includeMicAudio" type="checkbox"> Include microphone audio too</label></div><div class="buttonrow"><button id="startScreenRecord" class="primary" type="button">⏺ Record preview video</button><button id="stopScreenRecord" type="button" disabled>■ Stop &amp; use recording</button></div><div id="screenRecordStatus" class="notice hidden" role="status"></div><div class="small">Records the preview video and its available audio, not the surrounding page. Start recording, then let the video play; stop early whenever you want.</div>
+<div class="field" id="screenRecordControls"><strong>Record Maven preview</strong><div class="small">Records only the video element inside Maven’s preview. It never asks to share a tab, window, or screen.</div><label class="remember-key"><input id="includeMicAudio" type="checkbox"> Include microphone audio too</label></div><div class="buttonrow"><button id="startScreenRecord" class="primary" type="button">⏺ Record preview video</button><button id="stopScreenRecord" type="button" disabled>■ Stop &amp; use recording</button></div><div id="screenRecordStatus" class="notice hidden" role="status"></div><div class="small">Records the preview video directly, not the surrounding page. YouTube embeds cannot be captured directly because of browser security; use a permitted local video file for this recorder.</div>
 <div class="row"><button id="playBtn" type="button" disabled>▶ Play</button><button id="markStart" type="button" disabled>Set start to current time</button><button id="markEnd" type="button" disabled>Set end to current time</button></div></div>
 <div class="panel"><h3>02 / Shape your clip</h3><p class="muted">Choose the exact moment. Export runs locally in your browser; longer clips may take a while.</p><div class="rangegrid"><div class="field"><label for="startTime">Start time (seconds)</label><input id="startTime" type="number" min="0" step=".1" value="0"></div><div class="field"><label for="endTime">End time (seconds)</label><input id="endTime" type="number" min="0" step=".1" value="15"></div></div>
 <div class="trim-timeline" aria-label="Clip trim timeline">
@@ -166,24 +166,20 @@ $('startScreenRecord').onclick=async()=>{
  const startBtn=$('startScreenRecord'),stopBtn=$('stopScreenRecord');
  const previewVideo=document.querySelector('#preview video');
  const youtubeFrame=document.querySelector('#preview iframe#youtubeFrame');
- const recordingYoutube=!previewVideo&&!!youtubeFrame;
- const canCaptureScreen=!!(navigator.mediaDevices&&typeof navigator.mediaDevices.getDisplayMedia==='function');
- const canCaptureLocal=!!(previewVideo&&(typeof previewVideo.captureStream==='function'||typeof previewVideo.mozCaptureStream==='function'));
- if((!previewVideo||!previewVideo.src)&&!recordingYoutube){setNotice('screenRecordStatus','Load a local video or a YouTube video into the shared preview first.','error');return}
  if(!window.MediaRecorder){setNotice('screenRecordStatus','This browser cannot record video. Try the latest Chrome.','error');return}
- if(recordingYoutube&&!canCaptureScreen){setNotice('screenRecordStatus','This browser cannot capture the YouTube preview. Screen/tab capture is not supported here; try a browser that supports screen sharing.','error');return}
- if(!recordingYoutube&&!canCaptureLocal&&!canCaptureScreen){setNotice('screenRecordStatus','This browser supports neither direct video recording nor screen capture. Try a browser with MediaRecorder and screen/tab capture support.','error');return}
+ if(!previewVideo||!previewVideo.src){
+  const message=youtubeFrame
+   ?'YouTube preview recording is blocked by browser security. To record only the video without a screen chooser, download a video you are allowed to use and load it as a local file.'
+   :'Load a local video into Maven’s preview first.';
+  setNotice('screenRecordStatus',message,'error');return;
+ }
+ const captureMethod=previewVideo.captureStream||previewVideo.mozCaptureStream;
+ if(typeof captureMethod!=='function'){
+  setNotice('screenRecordStatus','This browser cannot capture the preview video directly. No screen/window chooser will be opened. Try the latest Chrome or another browser that supports video capture.','error');return;
+ }
  try{
-  // Prefer direct video capture for local files; use browser screen capture for YouTube
-  // and as a fallback for local files when direct capture is unavailable.
-  const useScreenCapture=recordingYoutube||!canCaptureLocal;
-  if(useScreenCapture){
-   screenCaptureStream=await navigator.mediaDevices.getDisplayMedia({video:{frameRate:30},audio:true});
-   if(!screenCaptureStream.getVideoTracks().length)throw new Error('No shared screen video track was provided.');
-   screenCaptureStream.getVideoTracks()[0].addEventListener('ended',()=>{if(screenRecorder&&screenRecorder.state==='recording')screenRecorder.stop()},{once:true});
-  }else{
-   screenCaptureStream=(previewVideo.captureStream||previewVideo.mozCaptureStream).call(previewVideo);
-  }
+  // Capture the HTML video element itself; never request the screen, tab, or window.
+  screenCaptureStream=captureMethod.call(previewVideo);
   let recorderStream=screenCaptureStream;
   const videoAudioTracks=screenCaptureStream.getAudioTracks();
   if($('includeMicAudio').checked){
@@ -218,7 +214,7 @@ $('startScreenRecord').onclick=async()=>{
   if(previewVideo)previewVideo.addEventListener('ended',()=>{if(screenRecorder&&screenRecorder.state==='recording')screenRecorder.stop()},{once:true});
   screenRecorder.start(500);startBtn.disabled=true;stopBtn.disabled=false;
   if(previewVideo){try{await previewVideo.play()}catch(e){}}
-  setNotice('screenRecordStatus',useScreenCapture?'Screen recording started. In the browser sharing prompt, choose the Maven tab/screen and enable tab audio if offered. The recording may include the Maven interface around the preview. Stop sharing or tap Stop & use recording to finish.':(hasAudio?'Recording the local video in Maven’s preview, including its available audio. It will stop at the end or when you click Stop & use recording.':'Recording the local video in Maven’s preview. No source audio track was available; microphone audio can be included if selected.'),'success');
+  setNotice('screenRecordStatus',hasAudio?'Recording only the video inside Maven’s preview, including its available audio. It will stop at the end or when you click Stop & use recording.':'Recording only the video inside Maven’s preview. No source audio track was available; microphone audio can be included if selected.','success');
  }catch(err){stopScreenCaptureTracks();startBtn.disabled=false;stopBtn.disabled=true;setNotice('screenRecordStatus','Could not start preview recording: '+(err&&err.message?err.message:'browser error'),'error')}
 };
 $('stopScreenRecord').onclick=()=>{if(screenRecorder&&screenRecorder.state==='recording'){ $('stopScreenRecord').disabled=true;setNotice('screenRecordStatus','Finishing preview recording and loading it into the editor…');screenRecorder.stop()}};
