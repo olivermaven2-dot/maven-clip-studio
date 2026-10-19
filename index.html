@@ -46,7 +46,8 @@
 <div class="row"><button id="applyClipLength" type="button">Apply length from start</button><div class="small" id="clipLengthStatus" role="status">Selected duration: 15 seconds</div></div><div class="row"><div class="field"><label for="aspect">Clip format</label><select id="aspect"><option value="vertical">Vertical 9:16 (Shorts / Reels)</option><option value="square">Square 1:1</option><option value="landscape">Landscape 16:9</option><option value="original">Original aspect ratio</option></select></div><div class="field"><label for="exportQuality">Export quality</label><select id="exportQuality"><option value="auto">Auto (High quality on PC)</option><option value="compact">Compact · up to 480p / 24 fps</option><option value="standard">Standard · up to 720p / 30 fps</option><option value="high" selected>High · up to 1080p / 30 fps</option></select></div></div><div class="row"><div class="field"><label for="frameHorizontal">Frame focus · left / right</label><select id="frameHorizontal"><option value="left">Left</option><option value="center" selected>Center</option><option value="right">Right</option></select></div><div class="field"><label for="frameVertical">Frame focus · top / bottom</label><select id="frameVertical"><option value="top">Top</option><option value="center" selected>Center</option><option value="bottom">Bottom</option></select></div></div><div class="buttonrow" style="margin:-3px 0 10px"><button id="suggestFrameFocus" type="button">Suggest focus from current frame</button></div><div id="frameFocusStatus" class="notice hidden" role="status"></div><p class="small">For fixed formats, move the crop to keep the important part of the picture in frame. Original aspect ratio stays uncropped.</p><div class="field"><label for="clipTitle">Clip name</label><input id="clipTitle" maxlength="90" placeholder="My best moment"></div><p class="small">High is recommended on a PC for clearer exports. Actual resolution is limited by the source video and selected clip format. Keep this tab open during export.</p>
 <div class="field"><label for="captionText">Burned-in caption (optional)</label><textarea id="captionText" rows="2" maxlength="220" placeholder="Type a short caption to display on the video…"></textarea><p class="small">This single caption stays visible throughout the exported clip. For timed subtitles, leave it blank.</p></div>
 <div class="field"><label for="timedCaptions">Timed subtitles (optional)</label><textarea id="timedCaptions" rows="4" placeholder="0-2.5 | Wait for it…&#10;2.5-5 | Here comes the moment!"></textarea><p class="small">One subtitle per line: start seconds-end seconds | text. Example: 0-2.5 | Hello. Timed subtitles take priority over the single caption above. Gaps stay caption-free.</p><div class="buttonrow"><button id="clearTimedCaptions" type="button">Clear timed subtitles</button></div></div>
-<div class="row"><div class="field"><label for="captionSize">Caption size</label><select id="captionSize"><option value="small">Small</option><option value="medium" selected>Medium</option><option value="large">Large</option></select></div><div class="field"><label for="captionPosition">Caption position</label><select id="captionPosition"><option value="bottom" selected>Bottom safe area</option><option value="middle">Middle</option><option value="top">Top safe area</option></select></div></div><div class="field"><label for="captionStyle">Subtitle style</label><select id="captionStyle"><option value="bold" selected>Bold creator — white text + dark box</option><option value="outline">Clean outline — no box</option><option value="highlight">Highlight box — purple accent</option></select><p class="small">Style applies to the preview and exported video.</p></div><div class="buttonrow"><button id="previewClip" type="button" disabled>Preview selection</button><button id="exportClip" class="primary" type="button" disabled>Export clip</button><button id="batchExportClips" type="button">Export selected clips</button></div><div id="exportStatus" class="notice hidden" role="status"></div><div id="batchProgressPanel" class="hidden" style="margin-top:12px;padding:12px;border:1px solid var(--line);border-radius:12px;background:#080f1c"><div style="display:flex;justify-content:space-between;gap:10px;font-size:12px;margin-bottom:8px"><strong id="batchProgressLabel">Batch export</strong><span id="batchProgressCount">0 / 0</span></div><div role="progressbar" aria-label="Batch export progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="batchProgressBar" style="height:9px;border-radius:8px;background:#202a3e;overflow:hidden"><div id="batchProgressFill" style="width:0%;height:100%;background:linear-gradient(90deg,#8b7cff,#49d9ce);transition:width .2s"></div></div><p id="batchProgressDetail" class="small" style="margin:8px 0 0">Waiting to start</p></div><div class="buttonrow" style="margin-top:10px"><button id="reviewExport" type="button" disabled>Review exported clip</button></div><p class="small">Export support depends on your browser. This first version creates a WebM file where MediaRecorder is supported.</p></div>
+<div class="row"><div class="field"><label for="captionSize">Caption size</label><select id="captionSize"><option value="small">Small</option><option value="medium" selected>Medium</option><option value="large">Large</option></select></div><div class="field"><label for="captionPosition">Caption position</label><select id="captionPosition"><option value="bottom" selected>Bottom safe area</option><option value="middle">Middle</option><option value="top">Top safe area</option></select></div></div><div class="field"><label for="captionStyle">Subtitle style</label><select id="captionStyle"><option value="bold" selected>Bold creator — white text + dark box</option><option value="outline">Clean outline — no box</option><option value="highlight">Highlight box — purple accent</option></select><p class="small">Style applies to the preview and exported video.</p></div><div class="panel" style="margin:10px 0;padding:12px;background:#0b1220"><h4 style="margin:0 0 8px">Reusable clip presets</h4><p class="small" style="margin:0 0 10px">Save your format, crop focus, export quality and subtitle settings to reuse on future clips.</p><div class="row"><div class="field"><label for="clipPresetName">Preset name</label><input id="clipPresetName" maxlength="40" placeholder="e.g. Gaming Shorts"></div><div class="field"><label for="clipPresetSelect">Saved presets</label><select id="clipPresetSelect"><option value="">No saved presets</option></select></div></div><div class="buttonrow"><button id="saveClipPreset" type="button">Save preset</button><button id="applyClipPreset" type="button">Apply preset</button><button id="deleteClipPreset" type="button">Delete preset</button></div><div id="clipPresetStatus" class="notice hidden" role="status" aria-live="polite"></div></div>
+<div class="buttonrow"><button id="previewClip" type="button" disabled>Preview selection</button><button id="exportClip" class="primary" type="button" disabled>Export clip</button><button id="batchExportClips" type="button">Export selected clips</button></div><div id="exportStatus" class="notice hidden" role="status"></div><div id="batchProgressPanel" class="hidden" style="margin-top:12px;padding:12px;border:1px solid var(--line);border-radius:12px;background:#080f1c"><div style="display:flex;justify-content:space-between;gap:10px;font-size:12px;margin-bottom:8px"><strong id="batchProgressLabel">Batch export</strong><span id="batchProgressCount">0 / 0</span></div><div role="progressbar" aria-label="Batch export progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="batchProgressBar" style="height:9px;border-radius:8px;background:#202a3e;overflow:hidden"><div id="batchProgressFill" style="width:0%;height:100%;background:linear-gradient(90deg,#8b7cff,#49d9ce);transition:width .2s"></div></div><p id="batchProgressDetail" class="small" style="margin:8px 0 0">Waiting to start</p></div><div class="buttonrow" style="margin-top:10px"><button id="reviewExport" type="button" disabled>Review exported clip</button></div><p class="small">Export support depends on your browser. This first version creates a WebM file where MediaRecorder is supported.</p></div>
 </section>
 <aside class="stack">
 <div class="panel"><h3>03 / Prepare the post</h3><div class="field"><label for="postTitle">YouTube title</label><input id="postTitle" maxlength="100" placeholder="Write a clear, engaging title"></div><div class="field"><label for="postDescription">Description</label><textarea id="postDescription" rows="4" placeholder="Add context, attribution or original commentary…"></textarea></div><div class="field"><label for="hashtags">Hashtags</label><input id="hashtags" placeholder="#shorts #highlights"></div><div class="field"><label for="category">Content type</label><select id="category"><option>General</option><option>Podcast / Interview</option><option>Football / Sports commentary</option><option>Motivation</option><option>Gaming</option><option>Education</option><option>Comedy</option><option>Music</option><option>News / Commentary</option></select></div><div class="buttonrow"><button id="useClipTitle" type="button">Use clip name as title</button><button id="saveDraft" class="primary" type="button">Save post draft</button></div><div id="draftStatus" class="notice hidden" role="status"></div></div>
@@ -177,6 +178,70 @@ PROJECT_SETTING_IDS.forEach(id=>{const el=$(id);if(el){el.addEventListener('chan
 $('saveProjectSettings').addEventListener('click',()=>saveProjectSettings(true));
 $('clearProjectSettings').addEventListener('click',()=>{try{localStorage.removeItem(PROJECT_SETTINGS_KEY);const el=$('projectRecoveryStatus');el.textContent='Saved project settings cleared. Current editor values are unchanged.';el.className='notice'}catch(e){setNotice('projectRecoveryStatus','Could not clear browser storage.','error')}});
 restoreProjectSettings();
+
+const CLIP_PRESETS_KEY='mavenClipStudioPresetsV1';
+const CLIP_PRESET_SETTING_IDS=['aspect','exportQuality','frameHorizontal','frameVertical','captionText','timedCaptions','captionSize','captionPosition','captionStyle','radarClipLength'];
+function readClipPresets(){
+ try{const raw=localStorage.getItem(CLIP_PRESETS_KEY);const data=raw?JSON.parse(raw):[];return Array.isArray(data)?data.filter(p=>p&&typeof p.name==='string'&&p.values&&typeof p.values==='object'):[]}
+ catch(e){return []}
+}
+function showClipPresetStatus(message,type='success'){
+ const el=$('clipPresetStatus');if(!el)return;el.textContent=message;el.className='notice '+(type==='error'?'error':'success');
+}
+function refreshClipPresetSelect(selectName=''){
+ const select=$('clipPresetSelect');if(!select)return;
+ const presets=readClipPresets();select.replaceChildren();
+ const placeholder=document.createElement('option');placeholder.value='';placeholder.textContent=presets.length?'Choose a saved preset':'No saved presets';select.append(placeholder);
+ presets.forEach(p=>{const option=document.createElement('option');option.value=p.name;option.textContent=p.name;select.append(option)});
+ if(selectName&&presets.some(p=>p.name===selectName))select.value=selectName;
+ const hasPreset=Boolean(select.value);
+ $('applyClipPreset').disabled=!hasPreset;$('deleteClipPreset').disabled=!hasPreset;
+}
+function captureClipPresetValues(){
+ const values={};CLIP_PRESET_SETTING_IDS.forEach(id=>{const el=$(id);if(el)values[id]=el.value});return values;
+}
+$('saveClipPreset').addEventListener('click',()=>{
+ const name=$('clipPresetName').value.trim().slice(0,40);
+ if(!name){showClipPresetStatus('Enter a name for this preset first.','error');$('clipPresetName').focus();return}
+ try{
+  const presets=readClipPresets(),existing=presets.findIndex(p=>p.name.toLocaleLowerCase()===name.toLocaleLowerCase());
+  const preset={name,values:captureClipPresetValues(),updatedAt:new Date().toISOString()};
+  if(existing>=0)presets[existing]=preset;else presets.push(preset);
+  localStorage.setItem(CLIP_PRESETS_KEY,JSON.stringify(presets));
+  $('clipPresetName').value=name;refreshClipPresetSelect(name);
+  showClipPresetStatus((existing>=0?'Updated':'Saved')+' preset “'+name+'”.');
+ }catch(e){showClipPresetStatus('Could not save the preset. Browser storage may be full or disabled.','error')}
+});
+$('applyClipPreset').addEventListener('click',()=>{
+ const name=$('clipPresetSelect').value;if(!name){showClipPresetStatus('Choose a saved preset to apply.','error');return}
+ const preset=readClipPresets().find(p=>p.name===name);
+ if(!preset){refreshClipPresetSelect();showClipPresetStatus('That preset is no longer available.','error');return}
+ try{
+  CLIP_PRESET_SETTING_IDS.forEach(id=>{
+   const el=$(id),value=preset.values[id];if(!el||typeof value!=='string')return;
+   if(el instanceof HTMLSelectElement&&!Array.from(el.options).some(o=>o.value===value))return;
+   el.value=value;el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}));
+  });
+  if(typeof updateCaptionPreview==='function')updateCaptionPreview();
+  $('clipPresetName').value=preset.name;
+  showClipPresetStatus('Applied “'+preset.name+'”. Source video and trim points were left unchanged.');
+ }catch(e){showClipPresetStatus('Could not apply this preset. Your current project remains available.','error')}
+});
+$('deleteClipPreset').addEventListener('click',()=>{
+ const name=$('clipPresetSelect').value;if(!name){showClipPresetStatus('Choose a preset to delete.','error');return}
+ if(!confirm('Delete the saved preset “'+name+'”? This does not delete any video or project.'))return;
+ try{
+  const presets=readClipPresets().filter(p=>p.name!==name);
+  localStorage.setItem(CLIP_PRESETS_KEY,JSON.stringify(presets));refreshClipPresetSelect();
+  showClipPresetStatus('Deleted preset “'+name+'”.');
+ }catch(e){showClipPresetStatus('Could not delete the preset from browser storage.','error')}
+});
+$('clipPresetSelect').addEventListener('change',()=>{
+ const name=$('clipPresetSelect').value;$('clipPresetName').value=name;
+ $('applyClipPreset').disabled=!name;$('deleteClipPreset').disabled=!name;
+});
+refreshClipPresetSelect();
+
 
 function setNotice(id,msg,kind=''){const el=$(id);el.textContent=msg;el.className='notice'+(kind?' '+kind:'');el.classList.remove('hidden')}
 function clearNotice(id){$(id).classList.add('hidden')}
