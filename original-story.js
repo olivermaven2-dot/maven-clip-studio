@@ -52,6 +52,31 @@
     $('storyOutput').textContent=parts.join('\n\n');
     status('Commentary draft built locally. Read it aloud, replace anything generic, and confirm all claims before exporting.','success');
   };
+
+  $('sendStoryToPost').addEventListener('click',()=>{
+    const output=$('storyOutput').textContent.trim();
+    if(!output||output.startsWith('Choose a moment')||output.startsWith('Choose a moment or enter')){status('Build your commentary script first.','error');return}
+    const destination=$('postDescription');
+    if(!destination){status('Post description field is unavailable.','error');return}
+    destination.value=output;
+    destination.dispatchEvent(new Event('input',{bubbles:true}));
+    destination.dispatchEvent(new Event('change',{bubbles:true}));
+    status('Commentary script added to the post description. Review it and add attribution or context before saving your draft.','success');
+    destination.scrollIntoView({behavior:'smooth',block:'center'});
+  });
+  $('useStoryTakeawayCaption').addEventListener('click',()=>{
+    const takeaway=$('storyTakeaway').value.trim();
+    if(!takeaway){status('Write your viewer takeaway first.','error');return}
+    const caption=$('captionText');
+    if(!caption){status('Video caption field is unavailable.','error');return}
+    caption.value=takeaway.slice(0,220);
+    caption.dispatchEvent(new Event('input',{bubbles:true}));
+    caption.dispatchEvent(new Event('change',{bubbles:true}));
+    if(typeof window.updateCaptionPreview==='function')window.updateCaptionPreview();
+    status('Viewer takeaway copied to the burned-in caption (up to 220 characters).','success');
+    caption.scrollIntoView({behavior:'smooth',block:'center'});
+  });
+
   $('buildOriginalStory').addEventListener('click',build);
   $('clearOriginalStory').addEventListener('click',()=>{
     ['storyContext','storyAngle','storyTakeaway'].forEach(id=>$(id).value='');
