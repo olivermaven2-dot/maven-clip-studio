@@ -64,5 +64,5 @@
     if(target){target.value=script.slice(0,700);target.dispatchEvent(new Event('input',{bubbles:true}));target.scrollIntoView({behavior:'smooth',block:'center'});status('Script copied into the commentary notes field. You can read it aloud while recording.','success')}
     else status('Your script is available in Original Story Builder.','error');
   });
-  window.addEventListener('beforeunload',()=>{if(timer)clearInterval(timer);releaseStream();cleanupUrl()});
+  window.mavenGetVoiceoverBlob=()=>blob;\n  window.addEventListener('beforeunload',()=>{if(timer)clearInterval(timer);releaseStream();cleanupUrl()});
 })();
