@@ -359,9 +359,9 @@
       const video = document.querySelector('#preview video');
       const duration = video && Number.isFinite(video.duration) && video.duration > 0
         ? video.duration : Math.max(1, ...merged.map(item => Number(item.end) || 0));
-      return merged.map(item => {
+      const ranked = merged.map(item => {
         const window = this.safeWindow(Number(item.center) || 0, duration, this.clipLength());
-        const signals = item.signals || [item.source];
+        const signals = [...new Set(item.signals || [item.source])];
         const values = item.signalScores || [Number(item.score) || 0];
         const average = values.reduce((sum,value)=>sum+value,0) / values.length;
         // Agreement between independent sources helps, but these are not virality probabilities.
@@ -369,8 +369,20 @@
         const score = Math.min(96, Math.round(average * 0.88 + bonus));
         const labels = { frames:'visual change', audio:'audio energy', transcript:'transcript cue' };
         const evidence = signals.map(s => labels[s] || s).join(' + ');
-        return { ...item, ...window, score, reason: signals.length > 1 ? 'Combined evidence: ' + evidence : item.reason, excerpt: item.excerpt || 'Review the full context and sound.', source: signals.length > 1 ? 'combined' : item.source };
-      }).sort((a,b)=>b.score-a.score).map((item,i)=>({ ...item, id:'candidate-'+i }));
+        return { ...item, ...window, score, signals, reason: signals.length > 1 ? 'Combined evidence: ' + evidence : item.reason, excerpt: item.excerpt || 'Review the full context and sound.', source: signals.length > 1 ? 'combined' : item.source };
+      }).sort((a,b)=>b.score-a.score);
+      // Suppress near-duplicate windows so the shortlist offers distinct moments from
+      // across the source video instead of several candidates around one loud scene/cut.
+      const distinct = [];
+      for (const item of ranked) {
+        const duplicate = distinct.some(existing =>
+          overlapRatio(existing,item) >= 0.45 ||
+          Math.abs(Number(existing.center)-Number(item.center)) < Math.max(3,this.clipLength()*0.55)
+        );
+        if (!duplicate) distinct.push(item);
+        if (distinct.length >= 12) break;
+      }
+      return distinct.map((item,i)=>({ ...item, id:'candidate-'+i }));
     },
     render(items) {
       const list = $('radarCandidates');
