@@ -138,9 +138,19 @@
   </div>
   <p class="small" style="margin-top:10px">This is a script-planning aid, not an AI fact-checker or a monetization guarantee. Review the wording, facts, rights, and platform rules yourself.</p>
 </section>
+<section class="panel" id="voiceoverStudio" style="margin-top:18px">
+<h3>07 / Voiceover Studio <span class="tag">RECORD LOCALLY</span></h3>
+<p class="radar-help">Record your own commentary with your PC microphone, listen back, and download the audio. Recording stays in this browser until you download it.</p>
+<div class="row" style="align-items:center"><div class="field"><label for="voiceoverFormat">Audio format</label><select id="voiceoverFormat"><option value="auto">Best supported format</option><option value="audio/webm;codecs=opus">WebM / Opus</option><option value="audio/ogg;codecs=opus">Ogg / Opus</option></select></div><div class="field"><label>Recording time</label><div id="voiceoverTimer" style="font-size:22px;font-weight:700;font-variant-numeric:tabular-nums">00:00</div></div></div>
+<div class="buttonrow"><button id="voiceoverStart" class="primary" type="button">Start recording</button><button id="voiceoverStop" type="button" disabled>Stop recording</button><button id="voiceoverDelete" type="button" disabled>Delete take</button></div>
+<div id="voiceoverStatus" class="notice hidden" role="status" aria-live="polite"></div>
+<div id="voiceoverReview" class="hidden" style="margin-top:12px"><audio id="voiceoverAudio" controls style="width:100%"></audio><div class="buttonrow" style="margin-top:8px"><a id="voiceoverDownload" class="button" download="maven-voiceover.webm" href="#" style="display:inline-flex;align-items:center;text-decoration:none;padding:10px 14px;border-radius:9px;border:1px solid var(--line)">Download voiceover</a><button id="voiceoverToScript" type="button">Copy script into notes</button></div></div>
+<p class="small">Use headphones to reduce audio bleed. The browser may ask for microphone permission. Voiceover is recorded separately; it is not automatically mixed into your exported video.</p>
+</section>
 <div class="footer">Maven Clip Studio · Browser-first prototype · No video is uploaded by this page</div><div class="mobile-action-dock" id="mobileActionDock" aria-label="Quick editing actions"><span class="dock-hint">Quick actions</span><button id="dockPreview" type="button" disabled>▶ Preview clip</button><button id="dockExport" class="primary" type="button" disabled>Export clip</button></div>\n</main>
 <script src="viral-radar.js"></script>
 <script src="original-story.js"></script>
+<script src="voiceover-studio.js"></script>
 <script src="viral-hashtags.js"></script>
 <script type="module" src="transcription.js"></script>
 <script>
