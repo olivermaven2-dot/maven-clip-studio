@@ -40,7 +40,7 @@
 <div class="field"><label for="clipLengthPreset">Target clip length</label><select id="clipLengthPreset"><option value="8">8 seconds</option><option value="15" selected>15 seconds</option><option value="20">20 seconds</option><option value="30">30 seconds</option><option value="45">45 seconds</option><option value="60">60 seconds</option><option value="90">90 seconds</option><option value="custom">Custom length</option></select></div>
 <div class="field hidden" id="customLengthWrap"><label for="customClipLength">Custom length (seconds)</label><input id="customClipLength" type="number" min="1" max="600" step="1" value="15" inputmode="numeric"></div>
 </div>
-<div class="row"><button id="applyClipLength" type="button">Apply length from start</button><div class="small" id="clipLengthStatus" role="status">Selected duration: 15 seconds</div></div><div class="row"><div class="field"><label for="aspect">Clip format</label><select id="aspect"><option value="vertical">Vertical 9:16 (Shorts / Reels)</option><option value="square">Square 1:1</option><option value="landscape">Landscape 16:9</option><option value="original">Original aspect ratio</option></select></div><div class="field"><label for="exportQuality">Export quality</label><select id="exportQuality"><option value="auto" selected>Auto (mobile-friendly)</option><option value="compact">Compact · 480p / 24 fps</option><option value="standard">Standard · 720p / 24 fps</option><option value="high">High · 1080p / 30 fps</option></select></div></div><div class="row"><div class="field"><label for="frameHorizontal">Frame focus · left / right</label><select id="frameHorizontal"><option value="left">Left</option><option value="center" selected>Center</option><option value="right">Right</option></select></div><div class="field"><label for="frameVertical">Frame focus · top / bottom</label><select id="frameVertical"><option value="top">Top</option><option value="center" selected>Center</option><option value="bottom">Bottom</option></select></div></div><p class="small">For fixed formats, move the crop to keep the important part of the picture in frame. Original aspect ratio stays uncropped.</p><div class="field"><label for="clipTitle">Clip name</label><input id="clipTitle" maxlength="90" placeholder="My best moment"></div><p class="small">Auto uses a lighter export on phones and low-memory devices. Compact is best for older phones or when storage is low; keep this tab open during export.</p>
+<div class="row"><button id="applyClipLength" type="button">Apply length from start</button><div class="small" id="clipLengthStatus" role="status">Selected duration: 15 seconds</div></div><div class="row"><div class="field"><label for="aspect">Clip format</label><select id="aspect"><option value="vertical">Vertical 9:16 (Shorts / Reels)</option><option value="square">Square 1:1</option><option value="landscape">Landscape 16:9</option><option value="original">Original aspect ratio</option></select></div><div class="field"><label for="exportQuality">Export quality</label><select id="exportQuality"><option value="auto">Auto (High quality on PC)</option><option value="compact">Compact · up to 480p / 24 fps</option><option value="standard">Standard · up to 720p / 30 fps</option><option value="high" selected>High · up to 1080p / 30 fps</option></select></div></div><div class="row"><div class="field"><label for="frameHorizontal">Frame focus · left / right</label><select id="frameHorizontal"><option value="left">Left</option><option value="center" selected>Center</option><option value="right">Right</option></select></div><div class="field"><label for="frameVertical">Frame focus · top / bottom</label><select id="frameVertical"><option value="top">Top</option><option value="center" selected>Center</option><option value="bottom">Bottom</option></select></div></div><p class="small">For fixed formats, move the crop to keep the important part of the picture in frame. Original aspect ratio stays uncropped.</p><div class="field"><label for="clipTitle">Clip name</label><input id="clipTitle" maxlength="90" placeholder="My best moment"></div><p class="small">High is recommended on a PC for clearer exports. Actual resolution is limited by the source video and selected clip format. Keep this tab open during export.</p>
 <div class="field"><label for="captionText">Burned-in caption (optional)</label><textarea id="captionText" rows="2" maxlength="220" placeholder="Type a short caption to display on the video…"></textarea><p class="small">This single caption stays visible throughout the exported clip. For timed subtitles, leave it blank.</p></div>
 <div class="field"><label for="timedCaptions">Timed subtitles (optional)</label><textarea id="timedCaptions" rows="4" placeholder="0-2.5 | Wait for it…&#10;2.5-5 | Here comes the moment!"></textarea><p class="small">One subtitle per line: start seconds-end seconds | text. Example: 0-2.5 | Hello. Timed subtitles take priority over the single caption above. Gaps stay caption-free.</p><div class="buttonrow"><button id="clearTimedCaptions" type="button">Clear timed subtitles</button></div></div>
 <div class="row"><div class="field"><label for="captionSize">Caption size</label><select id="captionSize"><option value="small">Small</option><option value="medium" selected>Medium</option><option value="large">Large</option></select></div><div class="field"><label for="captionPosition">Caption position</label><select id="captionPosition"><option value="bottom" selected>Bottom safe area</option><option value="middle">Middle</option><option value="top">Top safe area</option></select></div></div><div class="buttonrow"><button id="previewClip" type="button" disabled>Preview selection</button><button id="exportClip" class="primary" type="button" disabled>Export clip</button><button id="batchExportClips" type="button">Export selected clips</button></div><div id="exportStatus" class="notice hidden" role="status"></div><div class="buttonrow" style="margin-top:10px"><button id="reviewExport" type="button" disabled>Review exported clip</button></div><p class="small">Export support depends on your browser. This first version creates a WebM file where MediaRecorder is supported.</p></div>
@@ -179,7 +179,7 @@ $('startScreenRecord').onclick=async()=>{
   usingYoutubeTabCapture=isYoutube;
   if(isYoutube){
    setNotice('screenRecordStatus','Chrome will ask what to share. Choose the Chrome tab showing Maven Clip Studio and the playing YouTube preview; enable Share tab audio if offered.');
-   screenCaptureStream=await navigator.mediaDevices.getDisplayMedia({video:{frameRate:30},audio:true});
+   screenCaptureStream=await navigator.mediaDevices.getDisplayMedia({video:{frameRate:{ideal:60,max:60},width:{ideal:1920},height:{ideal:1080}},audio:true});
    if(!screenCaptureStream.getVideoTracks().length)throw new Error('No shared video track was provided. Choose a Chrome tab and try again.');
    recorderStream=screenCaptureStream;
   }else{
@@ -207,7 +207,7 @@ $('startScreenRecord').onclick=async()=>{
   }
   const hasAudio=recorderStream.getAudioTracks().length>0;
   const mime=['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'].find(type=>{try{return MediaRecorder.isTypeSupported(type)}catch(e){return false}});
-  screenChunks=[];screenStartedAt=Date.now();screenRecorder=mime?new MediaRecorder(recorderStream,{mimeType:mime}):new MediaRecorder(recorderStream);
+  screenChunks=[];screenStartedAt=Date.now();screenRecorder=mime?new MediaRecorder(recorderStream,{mimeType:mime,videoBitsPerSecond:10000000,audioBitsPerSecond:192000}):new MediaRecorder(recorderStream,{videoBitsPerSecond:10000000,audioBitsPerSecond:192000});
   screenRecorder.ondataavailable=e=>{if(e.data&&e.data.size)screenChunks.push(e.data)};
   screenRecorder.onerror=()=>setNotice('screenRecordStatus','The browser reported a recording error. Try a shorter segment.','error');
   screenRecorder.onstop=()=>{
@@ -334,7 +334,7 @@ $('exportClip').onclick=async()=>{
   const fixedAspect=aspectMode!=='original';
   const requestedQuality=$('exportQuality')?.value||'auto';
   const compactAuto=requestedQuality==='auto'&&((Number(navigator.deviceMemory)>0&&Number(navigator.deviceMemory)<=4)||Math.min(window.innerWidth||999,window.screen?.width||999)<=700);
-  const quality=requestedQuality==='auto'?(compactAuto?'compact':'standard'):requestedQuality;
+  const quality=requestedQuality==='auto'?(compactAuto?'compact':'high'):requestedQuality;
   const maxEdge=quality==='compact'?854:quality==='high'?1920:1280;
   let w,h;
   if(aspectMode==='vertical'){h=maxEdge;w=Math.round(maxEdge*9/16);}
@@ -342,7 +342,7 @@ $('exportClip').onclick=async()=>{
   else if(aspectMode==='landscape'){w=maxEdge;h=Math.round(maxEdge*9/16);}
   else{const scale=Math.min(1,maxEdge/Math.max(sourceWidth,sourceHeight));w=Math.round(sourceWidth*scale);h=Math.round(sourceHeight*scale);}
   w=Math.max(2,w-(w%2));h=Math.max(2,h-(h%2));
-  const fps=quality==='high'?30:quality==='compact'?20:24;
+  const fps=quality==='high'?30:quality==='compact'?24:30;
   const canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;
   const ctx=canvas.getContext('2d',{alpha:false});if(!ctx)throw new Error('Canvas is unavailable in this browser');
   stream=canvas.captureStream(fps);
@@ -372,7 +372,7 @@ $('exportClip').onclick=async()=>{
    setNotice('exportStatus','Warning: no audio track was available for this export. Check that the source video plays with sound before exporting.','error');
   }
   const chunks=[];
-  const videoBitsPerSecond=quality==='compact'?1800000:quality==='high'?6500000:3500000;
+  const videoBitsPerSecond=quality==='compact'?2500000:quality==='high'?8000000:5000000;
   recorder=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond,audioBitsPerSecond:128000});
   recorder.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data)};
   recorder.onerror=()=>{setNotice('exportStatus','The browser reported a recording error. The export may fail; try Compact quality or a shorter clip.','error')};
