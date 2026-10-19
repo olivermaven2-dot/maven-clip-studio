@@ -32,7 +32,7 @@
 <div class="divider"></div><div class="preview" id="preview"><div class="placeholder"><b>▶</b><strong>Your video preview</strong><div class="muted">Choose a local video to begin editing</div></div><div id="captionOverlay" class="caption-overlay hidden" aria-hidden="true"></div></div><div class="preview-label"><span id="sourceName">No source loaded</span><span id="durationLabel">00:00 / 00:00</span></div>
 <div class="field" id="screenRecordControls"><strong>Record preview video</strong><div class="small">Local videos are captured directly. For YouTube, Chrome will ask you to share a tab; choose the Maven Clip Studio tab playing the preview and enable tab audio if offered. Tab recording may include the surrounding page.</div><label class="remember-key"><input id="includeMicAudio" type="checkbox"> Include microphone audio too</label></div><div class="buttonrow"><button id="startScreenRecord" class="primary" type="button">⏺ Record preview video</button><button id="stopScreenRecord" type="button" disabled>■ Stop &amp; use recording</button></div><div id="screenRecordStatus" class="notice hidden" role="status"></div><div class="small">For YouTube, recording uses Chrome’s tab-sharing permission because the embedded player cannot be captured directly. Only record content you have permission to use.</div>
 <div class="row"><button id="playBtn" type="button" disabled>▶ Play</button><button id="markStart" type="button" disabled>Set start to current time</button><button id="markEnd" type="button" disabled>Set end to current time</button></div></div>
-<div class="panel"><h3>02 / Shape your clip</h3><p class="muted">Choose the exact moment. Export runs locally in your browser; longer clips may take a while.</p><div class="rangegrid"><div class="field"><label for="startTime">Start time (seconds)</label><input id="startTime" type="number" min="0" step=".1" value="0"></div><div class="field"><label for="endTime">End time (seconds)</label><input id="endTime" type="number" min="0" step=".1" value="15"></div></div>
+<div class="panel"><h3>02 / Shape your clip</h3><p class="muted">Choose the exact moment. Export runs locally in your browser; longer clips may take a while.</p><div class="notice" id="projectRecoveryStatus" role="status">Project recovery saves editing settings in this browser. Re-select your video after a refresh.</div><div class="buttonrow" style="margin:8px 0 14px"><button id="saveProjectSettings" type="button">Save project settings</button><button id="clearProjectSettings" type="button">Clear saved settings</button></div><div class="rangegrid"><div class="field"><label for="startTime">Start time (seconds)</label><input id="startTime" type="number" min="0" step=".1" value="0"></div><div class="field"><label for="endTime">End time (seconds)</label><input id="endTime" type="number" min="0" step=".1" value="15"></div></div>
 <div class="trim-timeline" aria-label="Clip trim timeline">
   <div class="trim-timeline-head"><strong>Quick trim</strong><span id="trimSummary" aria-live="polite">Start 0.0s · End 15.0s</span></div><canvas id="trimFrameStrip" class="trim-frame-strip" width="1200" height="88" tabindex="0" role="slider" aria-label="Video timeline. Click to seek and set the clip start." aria-valuemin="0" aria-valuemax="0" aria-valuenow="0"></canvas><p class="trim-frame-help">Click a frame to jump to that moment. Use the start and end controls below to set the exact clip boundaries.</p>
   <div class="trim-track"><label for="startScrubber">Start point</label><input id="startScrubber" type="range" min="0" max="15" step=".1" value="0" disabled></div>
@@ -155,6 +155,29 @@ const video = document.createElement('video'); video.controls = true; video.play
 const fmt = s => {if(!Number.isFinite(s)) return '00:00';s=Math.max(0,Math.floor(s));return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')};
 function loadDrafts(){try{const saved=localStorage.getItem('mavenClipStudioDrafts');const parsed=saved?JSON.parse(saved):[];return Array.isArray(parsed)?parsed.filter(d=>d&&typeof d.title==='string'):[]}catch(e){return []}}
 function persistDrafts(){try{localStorage.setItem('mavenClipStudioDrafts',JSON.stringify(drafts));return true}catch(e){return false}}
+const PROJECT_SETTINGS_KEY='mavenClipStudioProjectSettings';
+const PROJECT_SETTING_IDS=['startTime','endTime','aspect','exportQuality','frameHorizontal','frameVertical','clipTitle','captionText','timedCaptions','captionSize','captionPosition','captionStyle','radarClipLength'];
+function saveProjectSettings(showMessage=true){
+ const data={version:1,savedAt:new Date().toISOString(),values:{}};
+ PROJECT_SETTING_IDS.forEach(id=>{const el=$(id);if(el)data.values[id]=el.value});
+ try{localStorage.setItem(PROJECT_SETTINGS_KEY,JSON.stringify(data));if(showMessage){const el=$('projectRecoveryStatus');el.textContent='Project settings saved in this browser. Re-select the source video if you reload or reopen the app.';el.className='notice success'}return true}
+ catch(e){if(showMessage){const el=$('projectRecoveryStatus');el.textContent='Could not save settings. Browser storage may be full or disabled.';el.className='notice error'}return false}
+}
+function restoreProjectSettings(){
+ try{
+  const raw=localStorage.getItem(PROJECT_SETTINGS_KEY);if(!raw)return;
+  const data=JSON.parse(raw);if(!data||data.version!==1||!data.values)return;
+  PROJECT_SETTING_IDS.forEach(id=>{const el=$(id);if(el&&typeof data.values[id]==='string')el.value=data.values[id]});
+  if($('startTime')&&$('endTime'))syncTrimControls();
+  if(typeof updateCaptionPreview==='function')updateCaptionPreview();
+  const el=$('projectRecoveryStatus');if(el){const stamp=data.savedAt?new Date(data.savedAt):null;el.textContent='Recovered saved editing settings'+(stamp&&!Number.isNaN(stamp.getTime())?' from '+stamp.toLocaleString():'')+'. Re-select your source video; video files are not stored in browser recovery.';el.className='notice success'}
+ }catch(e){const el=$('projectRecoveryStatus');if(el){el.textContent='Saved settings could not be read; you can continue editing normally.';el.className='notice error'}}
+}
+PROJECT_SETTING_IDS.forEach(id=>{const el=$(id);if(el){el.addEventListener('change',()=>saveProjectSettings(false));el.addEventListener('input',()=>saveProjectSettings(false))}});
+$('saveProjectSettings').addEventListener('click',()=>saveProjectSettings(true));
+$('clearProjectSettings').addEventListener('click',()=>{try{localStorage.removeItem(PROJECT_SETTINGS_KEY);const el=$('projectRecoveryStatus');el.textContent='Saved project settings cleared. Current editor values are unchanged.';el.className='notice'}catch(e){setNotice('projectRecoveryStatus','Could not clear browser storage.','error')}});
+restoreProjectSettings();
+
 function setNotice(id,msg,kind=''){const el=$(id);el.textContent=msg;el.className='notice'+(kind?' '+kind:'');el.classList.remove('hidden')}
 function clearNotice(id){$(id).classList.add('hidden')}
 function syncMobileActionDock(){if(!$('mobileActionDock'))return;$('dockPreview').disabled=$('previewClip').disabled;$('dockExport').disabled=$('exportClip').disabled||$('previewClip').disabled}
