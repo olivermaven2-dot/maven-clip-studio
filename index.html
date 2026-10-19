@@ -145,7 +145,13 @@
 <div class="buttonrow"><button id="voiceoverStart" class="primary" type="button">Start recording</button><button id="voiceoverStop" type="button" disabled>Stop recording</button><button id="voiceoverDelete" type="button" disabled>Delete take</button></div>
 <div id="voiceoverStatus" class="notice hidden" role="status" aria-live="polite"></div>
 <div id="voiceoverReview" class="hidden" style="margin-top:12px"><audio id="voiceoverAudio" controls style="width:100%"></audio><div class="buttonrow" style="margin-top:8px"><a id="voiceoverDownload" class="button" download="maven-voiceover.webm" href="#" style="display:inline-flex;align-items:center;text-decoration:none;padding:10px 14px;border-radius:9px;border:1px solid var(--line)">Download voiceover</a><button id="voiceoverToScript" type="button">Copy script into notes</button></div></div>
-<p class="small">Use headphones to reduce audio bleed. The browser may ask for microphone permission. Voiceover is recorded separately; it is not automatically mixed into your exported video.</p>
+<div class="divider"></div>
+<div class="field"><label for="voiceoverImportFile">Voiceover audio for export (optional)</label><input id="voiceoverImportFile" type="file" accept="audio/*"></div>
+<label class="remember-key"><input id="useVoiceoverInExport" type="checkbox"> Mix voiceover into the exported clip</label>
+<div class="row"><div class="field"><label for="voiceoverOffset">Start voiceover (seconds into clip)</label><input id="voiceoverOffset" type="number" min="0" max="600" step="0.1" value="0"></div><div class="field"><label for="voiceoverMixVolume">Voiceover volume <span id="voiceoverMixVolumeLabel">100%</span></label><input id="voiceoverMixVolume" type="range" min="0" max="150" step="5" value="100"></div></div>
+<div id="voiceoverMixStatus" class="notice hidden" role="status" aria-live="polite">Choose a recorded take or import an audio file, then enable mixing before exporting.</div>
+<p class="small">The original video audio is kept and mixed with your voiceover. Voiceover timing is measured from the beginning of the exported clip. The audio mix is created locally in your browser.</p>
+<p class="small">Use headphones to reduce audio bleed. The browser may ask for microphone permission.</p>
 </section>
 <div class="footer">Maven Clip Studio · Browser-first prototype · No video is uploaded by this page</div><div class="mobile-action-dock" id="mobileActionDock" aria-label="Quick editing actions"><span class="dock-hint">Quick actions</span><button id="dockPreview" type="button" disabled>▶ Preview clip</button><button id="dockExport" class="primary" type="button" disabled>Export clip</button></div>\n</main>
 <script src="viral-radar.js"></script>
@@ -505,26 +511,51 @@ $('exportClip').onclick=async()=>{
   const ctx=canvas.getContext('2d',{alpha:false});if(!ctx)throw new Error('Canvas is unavailable in this browser');
   stream=canvas.captureStream(fps);
   if(!stream||!stream.getVideoTracks||!stream.getVideoTracks().length)throw new Error('The browser did not provide a canvas video track. Try a lower export quality or another browser.');
-  let audioStream=null;
-  try{
-   if(video.captureStream)audioStream=video.captureStream();
-   else if(video.mozCaptureStream)audioStream=video.mozCaptureStream();
-   if(audioStream)audioStream.getAudioTracks().forEach(t=>stream.addTrack(t));
-  }catch(e){/* Use Web Audio fallback below when direct audio capture is unavailable. */}
-  // Some browsers do not expose the loaded WebM's audio through video.captureStream().
-  // Route the media element audio into a fresh recording destination as a fallback.
-  if(!stream.getAudioTracks().length&&window.AudioContext){
+  let audioStream=null,voiceoverBuffer=null,voiceoverSource=null,voiceoverDestination=null;
+  const importedVoiceover=$('voiceoverImportFile')?.files?.[0]||null;
+  const recordedVoiceover=typeof window.mavenGetVoiceoverBlob==='function'?window.mavenGetVoiceoverBlob():null;
+  const mixVoiceover=!!$('useVoiceoverInExport')?.checked;
+  const voiceoverBlob=importedVoiceover||recordedVoiceover;
+  if(mixVoiceover&&!voiceoverBlob)throw new Error('Record a voiceover or choose an audio file before enabling voiceover mixing.');
+  if(mixVoiceover){
+   if(!window.AudioContext)throw new Error('Voiceover mixing requires a browser with Web Audio support, such as current Chrome.');
+   exportAudioContext=exportAudioContext||new AudioContext();
+   if(!exportAudioSource){
+    exportAudioSource=exportAudioContext.createMediaElementSource(video);
+    exportAudioSource.connect(exportAudioContext.destination);
+   }
+   const audioBytes=await voiceoverBlob.arrayBuffer();
+   voiceoverBuffer=await exportAudioContext.decodeAudioData(audioBytes);
+   voiceoverDestination=exportAudioContext.createMediaStreamDestination();
+   // Capture source-video audio and commentary through one mix bus, avoiding duplicate audio tracks.
+   exportAudioSource.connect(voiceoverDestination);
+   voiceoverSource=exportAudioContext.createBufferSource();
+   voiceoverSource.buffer=voiceoverBuffer;
+   const voiceGain=exportAudioContext.createGain();
+   voiceGain.gain.value=Math.max(0,Math.min(1.5,Number($('voiceoverMixVolume')?.value||100)/100));
+   voiceoverSource.connect(voiceGain);voiceGain.connect(voiceoverDestination);
+   voiceoverDestination.stream.getAudioTracks().forEach(t=>stream.addTrack(t));
+   await exportAudioContext.resume();
+  }else{
    try{
-    if(!exportAudioContext)exportAudioContext=new AudioContext();
-    if(!exportAudioSource){
-     exportAudioSource=exportAudioContext.createMediaElementSource(video);
-     exportAudioSource.connect(exportAudioContext.destination);
-    }
-    const audioDestination=exportAudioContext.createMediaStreamDestination();
-    exportAudioSource.connect(audioDestination);
-    audioDestination.stream.getAudioTracks().forEach(t=>stream.addTrack(t));
-    await exportAudioContext.resume();
-   }catch(audioErr){setNotice('exportStatus','Audio capture is unavailable in this browser; the export may be silent. Try Chrome and check that the source recording plays with sound.','error')}
+    if(video.captureStream)audioStream=video.captureStream();
+    else if(video.mozCaptureStream)audioStream=video.mozCaptureStream();
+    if(audioStream)audioStream.getAudioTracks().forEach(t=>stream.addTrack(t));
+   }catch(e){/* Use Web Audio fallback below when direct audio capture is unavailable. */}
+   // Some browsers do not expose loaded video audio through captureStream.
+   if(!stream.getAudioTracks().length&&window.AudioContext){
+    try{
+     if(!exportAudioContext)exportAudioContext=new AudioContext();
+     if(!exportAudioSource){
+      exportAudioSource=exportAudioContext.createMediaElementSource(video);
+      exportAudioSource.connect(exportAudioContext.destination);
+     }
+     const audioDestination=exportAudioContext.createMediaStreamDestination();
+     exportAudioSource.connect(audioDestination);
+     audioDestination.stream.getAudioTracks().forEach(t=>stream.addTrack(t));
+     await exportAudioContext.resume();
+    }catch(audioErr){setNotice('exportStatus','Audio capture is unavailable in this browser; the export may be silent. Try Chrome and check that the source recording plays with sound.','error')}
+   }
   }
   if(!stream.getAudioTracks().length){
    setNotice('exportStatus','Warning: no audio track was available for this export. Check that the source video plays with sound before exporting.','error');
@@ -577,6 +608,7 @@ $('exportClip').onclick=async()=>{
   });
   draw();recorder.start(250);
   setNotice('exportStatus','Exporting… 0%. Keep Maven Clip Studio open.');
+  if(voiceoverSource){const offset=Math.max(0,Math.min(600,Number($('voiceoverOffset')?.value||0)));voiceoverSource.start(exportAudioContext.currentTime+0.15,0);if(offset>0){voiceoverSource.stop(exportAudioContext.currentTime+offset);voiceoverSource=null;}}
   await video.play();
   await new Promise((resolve,reject)=>{
    let finished=false;
