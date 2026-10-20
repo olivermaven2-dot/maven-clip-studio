@@ -315,8 +315,11 @@ $('startScreenRecord').onclick=async()=>{
    stopScreenCaptureTracks();startBtn.disabled=false;stopBtn.disabled=true;
    if(!blob.size){setNotice('screenRecordStatus','No video data was captured. Play the video and try again.','error');return}
    const file=new File([blob],'maven-preview-recording-'+new Date().toISOString().replace(/[:.]/g,'-')+'.webm',{type:blob.type||'video/webm'});
+   // Queue AutoClip for the newly imported recording only after its video metadata is ready.
+   const recordedVideo=$('preview').querySelector('video');
+   if(recordedVideo)recordedVideo.addEventListener('loadedmetadata',()=>{setNotice('screenRecordStatus','Recording loaded. AutoClip is scanning it for the strongest moment…','success');$('autoBuildClip').click();},{once:true});
    setSource(file);$('tabUpload').click();$('fileInput').value='';
-   setNotice('screenRecordStatus','Recording loaded into the editor ('+(blob.size/1024/1024).toFixed(1)+' MB). Click AutoClip to scan it and suggest a clip.','success');
+   if(!recordedVideo)setNotice('screenRecordStatus','Recording loaded into the editor, but the video preview was not available. Click AutoClip to scan it.','error');
    $('preview').scrollIntoView({behavior:'smooth',block:'center'});
   };
   screenCaptureStream.getVideoTracks().forEach(track=>track.addEventListener('ended',()=>{if(screenRecorder&&screenRecorder.state==='recording')screenRecorder.stop()},{once:true}));
