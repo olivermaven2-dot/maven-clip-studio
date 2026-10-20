@@ -286,8 +286,23 @@ $('startScreenRecord').onclick=async()=>{
   let recorderStream;
   usingYoutubeTabCapture=true;
   setNotice('screenRecordStatus','Choose a browser tab, application window, or entire screen in Chrome’s picker. For the video inside Maven, choose the Maven Clip Studio tab and enable Share tab audio if offered.');
-  screenCaptureStream=await navigator.mediaDevices.getDisplayMedia({video:{frameRate:{ideal:60,max:60},width:{ideal:1920},height:{ideal:1080}},audio:true});
-  if(!screenCaptureStream.getVideoTracks().length)throw new Error('No shared video track was provided. Choose a tab, window, or screen and try again.');
+  screenCaptureStream=await navigator.mediaDevices.getDisplayMedia({video:{frameRate:{ideal:60,max:60},width:{ideal:1920},height:{ideal:1080},displaySurface:'browser'},audio:true});
+  if(!screenCaptureStream.getVideoTracks().length)throw new Error('No shared video track was provided. Choose the Maven Clip Studio browser tab and try again.');
+  // Crop the shared browser tab to the actual video/YouTube player element so page controls and other UI are excluded.
+  const captureTrack=screenCaptureStream.getVideoTracks()[0];
+  const cropElement=isYoutube?youtubeFrame:previewVideo;
+  if(typeof CropTarget!=='undefined'&&typeof CropTarget.fromElement==='function'&&typeof captureTrack.cropTo==='function'){
+   try{
+    const cropTarget=await CropTarget.fromElement(cropElement);
+    await captureTrack.cropTo(cropTarget);
+   }catch(cropError){
+    stopScreenCaptureTracks();
+    throw new Error('Could not isolate the video area. In Chrome, choose the Maven Clip Studio tab (not a window or full screen), then try again.');
+   }
+  }else{
+   stopScreenCaptureTracks();
+   throw new Error('This Chrome version does not support video-only tab cropping. Update Chrome, then choose the Maven Clip Studio tab. Recording the full tab is disabled so other page content is not captured.');
+  }
   recorderStream=screenCaptureStream;
   const videoAudioTracks=screenCaptureStream.getAudioTracks();
   if($('includeMicAudio').checked){
