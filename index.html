@@ -30,7 +30,7 @@
 <div class="small">Works with direct video-file links when the host permits browser downloads. If blocked, download from the source website and import the file above.</div>
 <div id="youtubePane" class="hidden"><label for="youtubeUrl">YouTube video URL</label><div class="row"><input id="youtubeUrl" type="url" placeholder="https://www.youtube.com/watch?v=…"><button id="loadYoutube" class="primary" type="button">Preview</button></div><div class="notice">YouTube preview works with AutoClip: it can prepare a suggested segment and fill in clip details. For true frame/audio scanning and editable video export, load a source file you own or are authorized to edit.</div><div id="youtubePreview" class="hidden" style="margin-top:12px"></div></div>
 <div class="divider"></div><div class="preview" id="preview"><div class="placeholder"><b>▶</b><strong>Your video preview</strong><div class="muted">Choose a local video to begin editing</div></div><div id="captionOverlay" class="caption-overlay hidden" aria-hidden="true"></div></div><div class="preview-label"><span id="sourceName">No source loaded</span><span id="durationLabel">00:00 / 00:00</span></div>
-<div class="field" id="screenRecordControls"><strong>Record preview video</strong><div class="small">Local videos are captured directly. For YouTube, Chrome will ask you to share a tab; choose the Maven Clip Studio tab playing the preview and enable tab audio if offered. Tab recording may include the surrounding page.</div><label class="remember-key"><input id="includeMicAudio" type="checkbox"> Include microphone audio too</label></div><div class="buttonrow"><button id="startScreenRecord" class="primary" type="button">⏺ Record preview video</button><button id="stopScreenRecord" type="button" disabled>■ Stop &amp; use recording</button></div><div id="screenRecordStatus" class="notice hidden" role="status"></div><div class="small">For YouTube, recording uses Chrome’s tab-sharing permission because the embedded player cannot be captured directly. Only record content you have permission to use.</div>
+<div class="field" id="screenRecordControls"><strong>Choose recording source</strong><div class="small">Click Record, then use Chrome’s sharing picker to choose a browser tab, application window, or entire screen. To record a video playing inside Maven, choose the Maven Clip Studio tab and enable Share tab audio if offered. You can choose another tab instead. Shared-tab recordings may include page controls around the video.</div><label class="remember-key"><input id="includeMicAudio" type="checkbox"> Include microphone audio too</label></div><div class="buttonrow"><button id="startScreenRecord" class="primary" type="button">⏺ Record preview video</button><button id="stopScreenRecord" type="button" disabled>■ Stop &amp; use recording</button></div><div id="screenRecordStatus" class="notice hidden" role="status"></div><div class="small">For YouTube, recording uses Chrome’s tab-sharing permission because the embedded player cannot be captured directly. Only record content you have permission to use.</div>
 <div class="row"><button id="playBtn" type="button" disabled>▶ Play</button><button id="markStart" type="button" disabled>Set start to current time</button><button id="markEnd" type="button" disabled>Set end to current time</button></div></div>
 <div class="panel"><h3>02 / Shape your clip</h3><p class="muted">Choose the exact moment. Export runs locally in your browser; longer clips may take a while.</p><div class="notice" id="projectRecoveryStatus" role="status">Project recovery saves editing settings in this browser. Re-select your video after a refresh.</div><div class="buttonrow" style="margin:8px 0 14px"><button id="saveProjectSettings" type="button">Save project settings</button><button id="clearProjectSettings" type="button">Clear saved settings</button></div><div class="rangegrid"><div class="field"><label for="startTime">Start time (seconds)</label><input id="startTime" type="number" min="0" step=".1" value="0"></div><div class="field"><label for="endTime">End time (seconds)</label><input id="endTime" type="number" min="0" step=".1" value="15"></div></div>
 <div class="trim-timeline" aria-label="Clip trim timeline">
@@ -276,28 +276,19 @@ $('startScreenRecord').onclick=async()=>{
  const youtubeFrame=document.querySelector('#preview iframe#youtubeFrame');
  if(!window.MediaRecorder){setNotice('screenRecordStatus','This browser cannot record video. Try the latest Chrome.','error');return}
  const isYoutube=!!youtubeFrame&&(!previewVideo||!previewVideo.src);
- if(isYoutube&&(!navigator.mediaDevices||!navigator.mediaDevices.getDisplayMedia)){
-  setNotice('screenRecordStatus','This browser cannot share a Chrome tab. Open Maven Clip Studio in an up-to-date Chrome browser and try again.','error');return;
+ if(!navigator.mediaDevices||!navigator.mediaDevices.getDisplayMedia){
+  setNotice('screenRecordStatus','This browser cannot choose a screen, window, or tab. Open Maven Clip Studio in an up-to-date Chrome browser and try again.','error');return;
  }
  if(!isYoutube&&(!previewVideo||!previewVideo.src)){
-  setNotice('screenRecordStatus','Load a local video or open a YouTube video in the preview first.','error');return;
+  setNotice('screenRecordStatus','Load a local video or open a YouTube video in the preview first, then choose the source to record.','error');return;
  }
  try{
   let recorderStream;
-  usingYoutubeTabCapture=isYoutube;
-  if(isYoutube){
-   setNotice('screenRecordStatus','Chrome will ask what to share. Choose the Chrome tab showing Maven Clip Studio and the playing YouTube preview; enable Share tab audio if offered.');
-   screenCaptureStream=await navigator.mediaDevices.getDisplayMedia({video:{frameRate:{ideal:60,max:60},width:{ideal:1920},height:{ideal:1080}},audio:true});
-   if(!screenCaptureStream.getVideoTracks().length)throw new Error('No shared video track was provided. Choose a Chrome tab and try again.');
-   recorderStream=screenCaptureStream;
-  }else{
-   const captureMethod=previewVideo.captureStream||previewVideo.mozCaptureStream;
-   if(typeof captureMethod!=='function'){
-    setNotice('screenRecordStatus','This browser cannot capture this local preview directly. Try the latest Chrome.','error');return;
-   }
-   screenCaptureStream=captureMethod.call(previewVideo);
-   recorderStream=screenCaptureStream;
-  }
+  usingYoutubeTabCapture=true;
+  setNotice('screenRecordStatus','Choose a browser tab, application window, or entire screen in Chrome’s picker. For the video inside Maven, choose the Maven Clip Studio tab and enable Share tab audio if offered.');
+  screenCaptureStream=await navigator.mediaDevices.getDisplayMedia({video:{frameRate:{ideal:60,max:60},width:{ideal:1920},height:{ideal:1080}},audio:true});
+  if(!screenCaptureStream.getVideoTracks().length)throw new Error('No shared video track was provided. Choose a tab, window, or screen and try again.');
+  recorderStream=screenCaptureStream;
   const videoAudioTracks=screenCaptureStream.getAudioTracks();
   if($('includeMicAudio').checked){
    if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)throw new Error('Microphone capture is not supported by this browser.');
@@ -332,9 +323,7 @@ $('startScreenRecord').onclick=async()=>{
   if(!isYoutube&&previewVideo)previewVideo.addEventListener('ended',()=>{if(screenRecorder&&screenRecorder.state==='recording')screenRecorder.stop()},{once:true});
   screenRecorder.start(500);startBtn.disabled=true;stopBtn.disabled=false;
   if(!isYoutube&&previewVideo){try{await previewVideo.play()}catch(e){}}
-  setNotice('screenRecordStatus',isYoutube
-   ?(hasAudio?'Recording the shared Chrome tab, including available tab audio. The recording may show the surrounding Maven page too. Stop sharing or click Stop & use recording when finished.':'Recording the shared Chrome tab. No tab-audio track was provided; enable Share tab audio in Chrome’s chooser and try again if you need sound.')
-   :(hasAudio?'Recording the local video preview and its available audio.':'Recording the local video preview. No source audio track was available; microphone audio can be included if selected.'),'success');
+  setNotice('screenRecordStatus',hasAudio?'Recording your chosen tab, window, or screen with available shared audio. Stop sharing or click Stop & use recording when finished.':'Recording your chosen tab, window, or screen without a shared audio track. If you need sound, select a tab and enable Share tab audio in Chrome’s picker.','success');
  }catch(err){stopScreenCaptureTracks();startBtn.disabled=false;stopBtn.disabled=true;setNotice('screenRecordStatus','Could not start recording: '+(err&&err.message?err.message:'browser error'),'error')}
 };
 $('stopScreenRecord').onclick=()=>{if(screenRecorder&&screenRecorder.state==='recording'){ $('stopScreenRecord').disabled=true;setNotice('screenRecordStatus','Finishing recording and loading it into the editor…');screenRecorder.stop()}};
