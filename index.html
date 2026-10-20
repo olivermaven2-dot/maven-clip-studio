@@ -45,7 +45,7 @@
 </div>
 <div class="row"><button id="applyClipLength" type="button">Apply length from start</button><div class="small" id="clipLengthStatus" role="status">Selected duration: 15 seconds</div></div><div class="row"><div class="field"><label for="aspect">Clip format</label><select id="aspect"><option value="vertical">Vertical 9:16 (Shorts / Reels)</option><option value="square">Square 1:1</option><option value="landscape">Landscape 16:9</option><option value="original">Original aspect ratio</option></select></div><div class="field"><label for="exportQuality">Export quality</label><select id="exportQuality"><option value="auto">Auto (High quality on PC)</option><option value="compact">Compact · up to 480p / 24 fps</option><option value="standard">Standard · up to 720p / 30 fps</option><option value="high" selected>High · up to 1080p / 30 fps</option></select></div></div><div class="row"><div class="field"><label for="frameHorizontal">Frame focus · left / right</label><select id="frameHorizontal"><option value="left">Left</option><option value="center" selected>Center</option><option value="right">Right</option></select></div><div class="field"><label for="frameVertical">Frame focus · top / bottom</label><select id="frameVertical"><option value="top">Top</option><option value="center" selected>Center</option><option value="bottom">Bottom</option></select></div></div><div class="buttonrow" style="margin:-3px 0 10px"><button id="suggestFrameFocus" type="button">Suggest focus from current frame</button></div><div id="frameFocusStatus" class="notice hidden" role="status"></div><p class="small">For fixed formats, move the crop to keep the important part of the picture in frame. Original aspect ratio stays uncropped.</p><div class="field"><label for="clipTitle">Clip name</label><input id="clipTitle" maxlength="90" placeholder="My best moment"></div><p class="small">High is recommended on a PC for clearer exports. Actual resolution is limited by the source video and selected clip format. Keep this tab open during export.</p>
 <div class="field"><label for="captionText">Burned-in caption (optional)</label><textarea id="captionText" rows="2" maxlength="220" placeholder="Type a short caption to display on the video…"></textarea><p class="small">This single caption stays visible throughout the exported clip. For timed subtitles, leave it blank.</p></div>
-<div class="field"><label for="timedCaptions">Timed subtitles (optional)</label><textarea id="timedCaptions" rows="4" placeholder="0-2.5 | Wait for it…&#10;2.5-5 | Here comes the moment!"></textarea><p class="small">One subtitle per line: start seconds-end seconds | text. Example: 0-2.5 | Hello. Timed subtitles take priority over the single caption above. Gaps stay caption-free.</p><div class="buttonrow"><button id="clearTimedCaptions" type="button">Clear timed subtitles</button></div></div>
+<div class="field"><label for="timedCaptions">Timed subtitles (optional)</label><textarea id="timedCaptions" rows="4" placeholder="0-2.5 | Wait for it…&#10;2.5-5 | Here comes the moment!"></textarea><p class="small">One subtitle per line: start seconds-end seconds | text. Example: 0-2.5 | Hello. Timed subtitles take priority over the single caption above. Gaps stay caption-free.</p><div id="captionContextStatus" class="notice hidden" role="status" aria-live="polite"></div><div class="buttonrow"><button id="clearTimedCaptions" type="button">Clear timed subtitles</button></div></div>
 <div class="row"><div class="field"><label for="captionSize">Caption size</label><select id="captionSize"><option value="small">Small</option><option value="medium" selected>Medium</option><option value="large">Large</option></select></div><div class="field"><label for="captionPosition">Caption position</label><select id="captionPosition"><option value="bottom" selected>Bottom safe area</option><option value="middle">Middle</option><option value="top">Top safe area</option></select></div></div><div class="field"><label for="captionStyle">Subtitle style</label><select id="captionStyle"><option value="bold" selected>Bold creator — white text + dark box</option><option value="outline">Clean outline — no box</option><option value="highlight">Highlight box — purple accent</option></select><p class="small">Style applies to the preview and exported video.</p></div><div class="panel" style="margin:10px 0;padding:12px;background:#0b1220"><h4 style="margin:0 0 8px">Reusable clip presets</h4><p class="small" style="margin:0 0 10px">Save your format, crop focus, export quality and subtitle settings to reuse on future clips.</p><div class="row"><div class="field"><label for="clipPresetName">Preset name</label><input id="clipPresetName" maxlength="40" placeholder="e.g. Gaming Shorts"></div><div class="field"><label for="clipPresetSelect">Saved presets</label><select id="clipPresetSelect"><option value="">No saved presets</option></select></div></div><div class="buttonrow"><button id="saveClipPreset" type="button">Save preset</button><button id="applyClipPreset" type="button">Apply preset</button><button id="deleteClipPreset" type="button">Delete preset</button></div><div id="clipPresetStatus" class="notice hidden" role="status" aria-live="polite"></div></div>
 <div class="buttonrow"><button id="previewClip" type="button" disabled>Preview selection</button><button id="exportClip" class="primary" type="button" disabled>Export clip</button><button id="batchExportClips" type="button">Export selected clips</button></div><div id="exportStatus" class="notice hidden" role="status"></div><div id="batchProgressPanel" class="hidden" style="margin-top:12px;padding:12px;border:1px solid var(--line);border-radius:12px;background:#080f1c"><div style="display:flex;justify-content:space-between;gap:10px;font-size:12px;margin-bottom:8px"><strong id="batchProgressLabel">Batch export</strong><span id="batchProgressCount">0 / 0</span></div><div role="progressbar" aria-label="Batch export progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="batchProgressBar" style="height:9px;border-radius:8px;background:#202a3e;overflow:hidden"><div id="batchProgressFill" style="width:0%;height:100%;background:linear-gradient(90deg,#8b7cff,#49d9ce);transition:width .2s"></div></div><p id="batchProgressDetail" class="small" style="margin:8px 0 0">Waiting to start</p></div><div class="buttonrow" style="margin-top:10px"><button id="reviewExport" type="button" disabled>Review exported clip</button></div><p class="small">Export support depends on your browser. This first version creates a WebM file where MediaRecorder is supported.</p></div>
 </section>
@@ -751,26 +751,39 @@ function makeAutoMetadata(candidate){
  const title=titleText.replace(/[\r\n]+/g,' ').trim();
  $('clipTitle').value=title.slice(0,90);
  $('postTitle').value=title.slice(0,95);
- const captionSource=(matching.length?matching.map(x=>x.text).join(' '):(isAnalysisLabel(clean)?'':clean)).replace(/\s+/g,' ').trim();
- $('captionText').value=captionSource?captionSource.slice(0,220):'';
- // Turn timestamped transcript lines into readable, clip-relative subtitle cues.
+ // Captions must come only from timestamped speech that overlaps this exact clip.
+ // Never promote an untimed candidate excerpt or scanner label into on-screen subtitles.
+ const captionSource=matching.map(x=>x.text).join(' ').replace(/\s+/g,' ').trim();
+ $('captionText').value='';
+ // Split recognized speech into short, readable cues while preserving timestamp context.
  const cueLines=[];
+ const clipDuration=Math.max(0.5,end-start);
  for(let i=0;i<matching.length;i++){
-  const item=matching[i];
-  const next=matching[i+1];
+  const item=matching[i],next=matching[i+1];
   const cueStart=Math.max(0,item.time-start);
-  const cueEnd=Math.min(end-start,next?Math.max(cueStart+0.7,next.time-start):cueStart+3.5);
-  const words=item.text.split(/\s+/).filter(Boolean);
-  let parts=[];
-  for(let j=0;j<words.length;j+=9) parts.push(words.slice(j,j+9).join(' '));
-  const span=Math.max(0.7,cueEnd-cueStart);
+  const nextStart=next?next.time-start:Math.min(clipDuration,cueStart+3.5);
+  const cueEnd=Math.min(clipDuration,Math.max(cueStart+0.35,nextStart));
+  if(cueStart>=clipDuration||cueEnd<=cueStart)continue;
+  const words=item.text.split(/\s+/).filter(Boolean),parts=[];
+  for(let j=0;j<words.length;j+=8)parts.push(words.slice(j,j+8).join(' '));
+  const span=cueEnd-cueStart;
   parts.forEach((part,j)=>{
-   const a=cueStart+span*j/parts.length;
-   const b=cueStart+span*(j+1)/parts.length;
-   cueLines.push(a.toFixed(1)+'-'+b.toFixed(1)+' | '+part);
+   const a=cueStart+span*j/parts.length,b=cueStart+span*(j+1)/parts.length;
+   if(part.trim()&&b>a)cueLines.push(a.toFixed(2)+'-'+b.toFixed(2)+' | '+part);
   });
  }
  $('timedCaptions').value=cueLines.join('\n');
+ const captionStatus=$('captionContextStatus');
+ if(captionStatus){
+  captionStatus.classList.remove('hidden','success','error');
+  if(cueLines.length){
+   captionStatus.textContent='Context-matched captions ready: '+cueLines.length+' timed cue(s) generated only from recognized speech inside this clip. Preview them and correct any transcription mistakes.';
+   captionStatus.classList.add('success');
+  }else{
+   captionStatus.textContent='No timestamped speech was found inside this clip, so automatic captions were left blank instead of guessing. Transcribe the video or add/edit subtitles manually.';
+   captionStatus.classList.add('error');
+  }
+ }
  const categoryTags={
   'Football / Sports commentary':['#football','#sports','#highlights'],
   'Gaming':['#gaming','#gameplay','#shorts'],
