@@ -296,27 +296,36 @@ $('startScreenRecord').onclick=async()=>{
  const youtubeFrame=document.querySelector('#preview iframe#youtubeFrame');
  if(!window.MediaRecorder){setNotice('screenRecordStatus','This browser cannot record video. Try the latest Chrome.','error');return}
  const isYoutube=!!youtubeFrame&&(!previewVideo||!previewVideo.src);
- if(!navigator.mediaDevices||!navigator.mediaDevices.getDisplayMedia){
-  setNotice('screenRecordStatus','This browser cannot choose a screen, window, or tab. Open Maven Clip Studio in an up-to-date Chrome browser and try again.','error');return;
- }
  if(!isYoutube&&(!previewVideo||!previewVideo.src)){
-  setNotice('screenRecordStatus','Load a local video or open a YouTube video in the preview first, then choose the source to record.','error');return;
+  setNotice('screenRecordStatus','Load a local video or open a YouTube video in the preview first.','error');return;
  }
  try{
   let recorderStream;
-  usingYoutubeTabCapture=true;
-  setNotice('screenRecordStatus','Choose a browser tab, application window, or entire screen in Chrome’s picker. For the video inside Maven, choose the Maven Clip Studio tab and enable Share tab audio if offered.');
-  screenCaptureStream=await navigator.mediaDevices.getDisplayMedia({video:{frameRate:{ideal:60,max:60},width:{ideal:1920},height:{ideal:1080},displaySurface:'browser'},audio:true});
-  if(!screenCaptureStream.getVideoTracks().length)throw new Error('No shared video track was provided. Choose the Maven Clip Studio browser tab and try again.');
-  // Create a canvas stream from only the preview player's rectangle, excluding the rest of the shared tab.
-  const cropElement=isYoutube?youtubeFrame:previewVideo;
-  recorderStream=await makeVideoOnlyCropStream(screenCaptureStream,cropElement);
-  const videoAudioTracks=screenCaptureStream.getAudioTracks();
+  if(!isYoutube){
+   // Capture the actual HTML video element directly. This records only the video,
+   // never the surrounding Maven page or browser tab.
+   const capture=previewVideo.captureStream||previewVideo.mozCaptureStream;
+   if(!capture)throw new Error('Direct video-only recording is not supported in this browser. Update Chrome and try again.');
+   screenCaptureStream=capture.call(previewVideo);
+   if(!screenCaptureStream.getVideoTracks().length)throw new Error('The video has not started decoding yet. Press Play and try again.');
+   recorderStream=new MediaStream([...screenCaptureStream.getVideoTracks(),...screenCaptureStream.getAudioTracks()]);
+   setNotice('screenRecordStatus','Recording only the video player — page controls and the rest of the tab are excluded. Click Stop & use recording when ready.','success');
+  }else{
+   if(!navigator.mediaDevices||!navigator.mediaDevices.getDisplayMedia)throw new Error('Tab capture is unavailable in this browser. Open Maven Clip Studio in the latest Chrome.');
+   usingYoutubeTabCapture=true;
+   setNotice('screenRecordStatus','Choose the Maven Clip Studio browser tab in Chrome’s picker (not a window or full screen). The recording will be cropped to the YouTube player only.');
+   screenCaptureStream=await navigator.mediaDevices.getDisplayMedia({video:{frameRate:{ideal:60,max:60},width:{ideal:1920},height:{ideal:1080},displaySurface:'browser'},audio:true});
+   if(!screenCaptureStream.getVideoTracks().length)throw new Error('No shared video track was provided. Choose the Maven Clip Studio browser tab and try again.');
+   const settings=screenCaptureStream.getVideoTracks()[0].getSettings?.()||{};
+   if(settings.displaySurface&&settings.displaySurface!=='browser')throw new Error('You selected a window or screen. Cancel and choose the Maven Clip Studio browser tab.');
+   recorderStream=await makeVideoOnlyCropStream(screenCaptureStream,youtubeFrame);
+  }
   if($('includeMicAudio').checked){
    if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)throw new Error('Microphone capture is not supported by this browser.');
    screenMicStream=await navigator.mediaDevices.getUserMedia({audio:true});
   }
   const micTracks=screenMicStream?screenMicStream.getAudioTracks():[];
+  const videoAudioTracks=recorderStream.getAudioTracks();
   if(videoAudioTracks.length&&micTracks.length&&window.AudioContext){
    screenAudioContext=new AudioContext();
    const mix=screenAudioContext.createMediaStreamDestination();
@@ -337,7 +346,6 @@ $('startScreenRecord').onclick=async()=>{
    stopScreenCaptureTracks();startBtn.disabled=false;stopBtn.disabled=true;
    if(!blob.size){setNotice('screenRecordStatus','No video data was captured. Play the video and try again.','error');return}
    const file=new File([blob],'maven-preview-recording-'+new Date().toISOString().replace(/[:.]/g,'-')+'.webm',{type:blob.type||'video/webm'});
-   // Queue AutoClip for the newly imported recording only after its video metadata is ready.
    const recordedVideo=$('preview').querySelector('video');
    if(recordedVideo)recordedVideo.addEventListener('loadedmetadata',()=>{setNotice('screenRecordStatus','Recording loaded. AutoClip is scanning it for the strongest moment…','success');$('autoBuildClip').click();},{once:true});
    setSource(file);$('tabUpload').click();$('fileInput').value='';
@@ -348,7 +356,7 @@ $('startScreenRecord').onclick=async()=>{
   if(!isYoutube&&previewVideo)previewVideo.addEventListener('ended',()=>{if(screenRecorder&&screenRecorder.state==='recording')screenRecorder.stop()},{once:true});
   screenRecorder.start(500);startBtn.disabled=true;stopBtn.disabled=false;
   if(!isYoutube&&previewVideo){try{await previewVideo.play()}catch(e){}}
-  setNotice('screenRecordStatus',hasAudio?'Recording your chosen tab, window, or screen with available shared audio. Stop sharing or click Stop & use recording when finished.':'Recording your chosen tab, window, or screen without a shared audio track. If you need sound, select a tab and enable Share tab audio in Chrome’s picker.','success');
+  setNotice('screenRecordStatus',isYoutube?(hasAudio?'Recording the cropped YouTube player with available tab audio. Click Stop & use recording when ready.':'Recording the cropped YouTube player. No tab audio was shared; enable Share tab audio in Chrome’s picker for sound.'):(hasAudio?'Recording only the video player with its audio.':'Recording only the video player. The source has no audio track.'),'success');
  }catch(err){stopScreenCaptureTracks();startBtn.disabled=false;stopBtn.disabled=true;setNotice('screenRecordStatus','Could not start recording: '+(err&&err.message?err.message:'browser error'),'error')}
 };
 $('stopScreenRecord').onclick=()=>{if(screenRecorder&&screenRecorder.state==='recording'){ $('stopScreenRecord').disabled=true;setNotice('screenRecordStatus','Finishing recording and loading it into the editor…');screenRecorder.stop()}};
