@@ -268,8 +268,28 @@ $('dockExport').onclick=()=>{if(!$('dockExport').disabled)$('exportClip').click(
 const dockObserver=new MutationObserver(syncMobileActionDock);['previewClip','exportClip'].forEach(id=>dockObserver.observe($(id),{attributes:true,attributeFilter:['disabled']}));
 function enableEditor(on){['playBtn','markStart','markEnd','previewClip','exportClip'].forEach(id=>$(id).disabled=!on);syncMobileActionDock()}
 function setSource(file,url){currentFile=file; if(objectUrl) URL.revokeObjectURL(objectUrl);objectUrl=url||URL.createObjectURL(file);video.src=objectUrl;video.load();$('preview').replaceChildren(video,$('captionOverlay'));$('sourceName').textContent=file.name;$('clipTitle').value=file.name.replace(/\.[^.]+$/,'').slice(0,90);enableEditor(true);exportedBlob=null;updateCaptionPreview();renderTrimFrames()}
-let screenCaptureStream=null,screenRecorder=null,screenChunks=[],screenStartedAt=0,screenMicStream=null,screenAudioContext=null,usingYoutubeTabCapture=false;
-function stopScreenCaptureTracks(){if(screenCaptureStream){screenCaptureStream.getTracks().forEach(track=>track.stop());screenCaptureStream=null}if(screenMicStream){screenMicStream.getTracks().forEach(track=>track.stop());screenMicStream=null}if(screenAudioContext){screenAudioContext.close().catch(()=>{});screenAudioContext=null}usingYoutubeTabCapture=false}
+let screenCaptureStream=null,screenRecorder=null,screenChunks=[],screenStartedAt=0,screenMicStream=null,screenAudioContext=null,screenCropVideo=null,screenCropCanvas=null,screenCropRaf=0,usingYoutubeTabCapture=false;
+function stopScreenCaptureTracks(){if(screenCropRaf)cancelAnimationFrame(screenCropRaf);screenCropRaf=0;if(screenCropVideo){screenCropVideo.pause();screenCropVideo.srcObject=null;screenCropVideo=null}screenCropCanvas=null;if(screenCaptureStream){screenCaptureStream.getTracks().forEach(track=>track.stop());screenCaptureStream=null}if(screenMicStream){screenMicStream.getTracks().forEach(track=>track.stop());screenMicStream=null}if(screenAudioContext){screenAudioContext.close().catch(()=>{});screenAudioContext=null}usingYoutubeTabCapture=false}
+async function makeVideoOnlyCropStream(displayStream,targetElement){
+ const track=displayStream.getVideoTracks()[0],settings=track&&track.getSettings?track.getSettings():{};
+ if(settings.displaySurface&&settings.displaySurface!=='browser')throw new Error('Please choose the Maven Clip Studio browser tab in Chrome’s picker. A window or full-screen recording cannot be cropped to just the video.');
+ const rect=targetElement.getBoundingClientRect();
+ if(!rect.width||!rect.height)throw new Error('The video player is not visible. Bring it into view, then start recording again.');
+ const source=document.createElement('video');source.muted=true;source.playsInline=true;source.srcObject=displayStream;screenCropVideo=source;
+ await new Promise((resolve,reject)=>{source.onloadedmetadata=resolve;source.onerror=()=>reject(new Error('Could not read the shared tab video.'))});
+ await source.play();
+ const sx=Math.max(0,Math.round(rect.left*(source.videoWidth/window.innerWidth)));
+ const sy=Math.max(0,Math.round(rect.top*(source.videoHeight/window.innerHeight)));
+ const sw=Math.min(source.videoWidth-sx,Math.round(rect.width*(source.videoWidth/window.innerWidth)));
+ const sh=Math.min(source.videoHeight-sy,Math.round(rect.height*(source.videoHeight/window.innerHeight)));
+ if(sw<2||sh<2)throw new Error('Could not locate the video area in the shared tab. Make sure you selected the Maven Clip Studio tab.');
+ const canvas=document.createElement('canvas');canvas.width=sw;canvas.height=sh;screenCropCanvas=canvas;
+ const ctx=canvas.getContext('2d',{alpha:false});if(!ctx)throw new Error('Video-only cropping is unavailable in this browser.');
+ const draw=()=>{if(!screenCropVideo||!screenCropCanvas)return;try{ctx.drawImage(source,sx,sy,sw,sh,0,0,sw,sh)}catch(e){}screenCropRaf=requestAnimationFrame(draw)};
+ draw();
+ const cropped=canvas.captureStream(30);
+ return new MediaStream([...cropped.getVideoTracks(),...displayStream.getAudioTracks()]);
+}
 $('startScreenRecord').onclick=async()=>{
  const startBtn=$('startScreenRecord'),stopBtn=$('stopScreenRecord');
  const previewVideo=document.querySelector('#preview video');
@@ -288,22 +308,9 @@ $('startScreenRecord').onclick=async()=>{
   setNotice('screenRecordStatus','Choose a browser tab, application window, or entire screen in Chrome’s picker. For the video inside Maven, choose the Maven Clip Studio tab and enable Share tab audio if offered.');
   screenCaptureStream=await navigator.mediaDevices.getDisplayMedia({video:{frameRate:{ideal:60,max:60},width:{ideal:1920},height:{ideal:1080},displaySurface:'browser'},audio:true});
   if(!screenCaptureStream.getVideoTracks().length)throw new Error('No shared video track was provided. Choose the Maven Clip Studio browser tab and try again.');
-  // Crop the shared browser tab to the actual video/YouTube player element so page controls and other UI are excluded.
-  const captureTrack=screenCaptureStream.getVideoTracks()[0];
+  // Create a canvas stream from only the preview player's rectangle, excluding the rest of the shared tab.
   const cropElement=isYoutube?youtubeFrame:previewVideo;
-  if(typeof CropTarget!=='undefined'&&typeof CropTarget.fromElement==='function'&&typeof captureTrack.cropTo==='function'){
-   try{
-    const cropTarget=await CropTarget.fromElement(cropElement);
-    await captureTrack.cropTo(cropTarget);
-   }catch(cropError){
-    stopScreenCaptureTracks();
-    throw new Error('Could not isolate the video area. In Chrome, choose the Maven Clip Studio tab (not a window or full screen), then try again.');
-   }
-  }else{
-   stopScreenCaptureTracks();
-   throw new Error('This Chrome version does not support video-only tab cropping. Update Chrome, then choose the Maven Clip Studio tab. Recording the full tab is disabled so other page content is not captured.');
-  }
-  recorderStream=screenCaptureStream;
+  recorderStream=await makeVideoOnlyCropStream(screenCaptureStream,cropElement);
   const videoAudioTracks=screenCaptureStream.getAudioTracks();
   if($('includeMicAudio').checked){
    if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)throw new Error('Microphone capture is not supported by this browser.');
@@ -315,9 +322,9 @@ $('startScreenRecord').onclick=async()=>{
    const mix=screenAudioContext.createMediaStreamDestination();
    screenAudioContext.createMediaStreamSource(new MediaStream(videoAudioTracks)).connect(mix);
    screenAudioContext.createMediaStreamSource(new MediaStream(micTracks)).connect(mix);
-   recorderStream=new MediaStream([...screenCaptureStream.getVideoTracks(),...mix.stream.getAudioTracks()]);
+   recorderStream=new MediaStream([...recorderStream.getVideoTracks(),...mix.stream.getAudioTracks()]);
   }else if(micTracks.length&&!videoAudioTracks.length){
-   recorderStream=new MediaStream([...screenCaptureStream.getVideoTracks(),...micTracks]);
+   recorderStream=new MediaStream([...recorderStream.getVideoTracks(),...micTracks]);
   }
   const hasAudio=recorderStream.getAudioTracks().length>0;
   const mime=['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'].find(type=>{try{return MediaRecorder.isTypeSupported(type)}catch(e){return false}});
